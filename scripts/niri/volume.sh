@@ -26,7 +26,7 @@ vol_value=$(echo "$volume" | awk '{print $2 * 100}')
 vol_status=$(echo "$volume" | cut -d" " -f3)
 
 if [ "$vol_status" = "[MUTED]" ]; then
-    notify-send -a "muted" -h int:value:"$vol_value" ""
+    notify-send -a "muted" "MUTED"
     exit 0
 fi
 
