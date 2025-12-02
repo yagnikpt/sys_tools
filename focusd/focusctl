@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+BUS="xyz.FocusMode"
+OBJ="/xyz/FocusMode"
+IFACE="xyz.FocusMode1"
+
+usage() {
+    echo "Usage: focusctl {on|off|toggle|status}"
+    exit 1
+}
+
+[ $# -lt 1 ] && usage
+
+cmd="$1"
+shift || true
+
+case "$cmd" in
+    on)
+        dbus-send --system --dest=$BUS $OBJ $IFACE.Enable >/dev/null
+        ;;
+    off)
+        dbus-send --system --dest=$BUS $OBJ $IFACE.Disable >/dev/null
+        ;;
+    toggle)
+        dbus-send --system --dest=$BUS $OBJ $IFACE.Toggle >/dev/null
+        ;;
+    status)
+        dbus-send --system --dest=$BUS $OBJ $IFACE.Status \
+            | awk -F\" '/string/ {print $2}'
+        ;;
+    *)
+        usage
+        ;;
+esac
