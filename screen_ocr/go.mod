@@ -1,4 +1,4 @@
-module screen_ocr
+module github.com/yagnikpt/sys_tools/screen_ocr
 
 go 1.24.3
 
