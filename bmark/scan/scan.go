@@ -24,7 +24,7 @@ func ScanLocalAvailableBooks() ([]string, error) {
 			}
 			ext := strings.ToLower(filepath.Ext(path))
 			if ext == ".pdf" || ext == ".epub" {
-				files = append(files, path)
+				files = append(files, homeRelativePath(path))
 			}
 			return nil
 		})
@@ -34,4 +34,22 @@ func ScanLocalAvailableBooks() ([]string, error) {
 	}
 
 	return files, nil
+}
+
+func homeRelativePath(path string) string {
+	home := xdg.Home
+	if home == "" {
+		return path
+	}
+
+	if path == home {
+		return "~"
+	}
+
+	prefix := home + string(filepath.Separator)
+	if strings.HasPrefix(path, prefix) {
+		return "~" + path[len(home):]
+	}
+
+	return path
 }

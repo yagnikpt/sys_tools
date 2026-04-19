@@ -1,14 +1,28 @@
 # sys_tools
 
-A collection of personal utility CLI tools for Linux.
+A collection of personal utility CLI tools for Linux. Btw these tools are vibecoded with reviewing.
 
 ---
 
 ## Tools
 
+### `article_spawner` — open a random article
+
+Pick and open a random article from configured sources. Supports RSS feeds and API providers (Hacker News, Dev.to).
+To read more [README.md](./article_spawner/README.md)
+
+Instead of getting distracted and spending time on random thing, this helps to quickly spawn a content which is better.
+
+```bash
+go install github.com/yagnikpt/sys_tools/article_spawner@latest
+```
+
+---
+
 ### `bmark` — PDF reading tracker
 
 Track reading progress across PDF files. Uses Papers as the viewer, syncs last-read page via GIO metadata. Supports fzf and rofi for picking.
+I personally use it to keep track of the books i read.
 
 **Dependencies**
 
@@ -16,6 +30,7 @@ Track reading progress across PDF files. Uses Papers as the viewer, syncs last-r
 |------|---------|
 | `papers` | PDF viewer |
 | `gio` | reads last-read page from file metadata |
+| `pdfinfo` | reads file metadata |
 | `fzf` | default fuzzy picker |
 | `rofi` | optional picker (`--rofi`) |
 
@@ -24,6 +39,7 @@ go install github.com/yagnikpt/sys_tools/bmark@latest
 ```
 
 ---
+
 
 ### `screen_ocr` — screenshot to clipboard via OCR
 
