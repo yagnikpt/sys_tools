@@ -128,7 +128,7 @@ func defaultConfig() Config {
 						"state":    "rising",
 						"top_days": 7,
 						"per_page": 30,
-						"tag":      "go, linux, devops",
+						"tags":     "go, linux, devops",
 					},
 				},
 			},

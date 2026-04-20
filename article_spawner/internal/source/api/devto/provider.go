@@ -23,7 +23,7 @@ type Provider struct {
 	state     string
 	topDays   int
 	perPage   int
-	tag       string
+	tags      string
 }
 
 type articleItem struct {
@@ -92,12 +92,12 @@ func (p *Provider) applyOptions(options map[string]any) error {
 			}
 			p.perPage = perPage
 
-		case "tag":
-			tag, err := utils.StringValue(value)
+		case "tags", "tag":
+			tags, err := utils.StringValue(value)
 			if err != nil {
-				return fmt.Errorf("api.options.tag: %w", err)
+				return fmt.Errorf("api.options.tags: %w", err)
 			}
-			p.tag = strings.TrimSpace(tag)
+			p.tags = strings.TrimSpace(tags)
 		}
 	}
 
@@ -135,8 +135,8 @@ func (p *Provider) fetchArticles(ctx context.Context, limit int) ([]articleItem,
 	if p.topDays > 0 {
 		query.Set("top", strconv.Itoa(p.topDays))
 	}
-	if p.tag != "" {
-		query.Set("tag", p.tag)
+	if p.tags != "" {
+		query.Set("tags", p.tags)
 	}
 
 	endpoint := p.baseURL + "/articles?" + query.Encode()
