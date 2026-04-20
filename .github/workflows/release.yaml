@@ -23,7 +23,9 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           TOOL=$(echo "$TAG" | cut -d'/' -f1)
+          VERSION=$(echo "$TAG" | cut -d'/' -f2)
           echo "tool=$TOOL" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -40,3 +42,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.meta.outputs.version }}
