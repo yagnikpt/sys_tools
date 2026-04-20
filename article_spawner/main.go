@@ -16,6 +16,7 @@ import (
 
 func main() {
 	configPath := flag.String("config", "", "path to YAML config (default: XDG config path)")
+	showConfigPath := flag.Bool("config-path", false, "print default config path and exit")
 	dryRun := flag.Bool("dry-run", false, "select and print article, do not open")
 	printOnly := flag.Bool("print", false, "print selected article details")
 	listSources := flag.Bool("list", false, "list configured sources and exit")
@@ -30,6 +31,11 @@ func main() {
 	}
 
 	flag.Parse()
+
+	if *showConfigPath {
+		fmt.Println(config.DefaultFilePath())
+		return
+	}
 
 	if err := run(*configPath, *dryRun, *printOnly, *listSources || *lsSources, *forcedSourceID); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

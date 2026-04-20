@@ -44,7 +44,7 @@ jobs:
         shell: bash
         working-directory: ${{ steps.meta.outputs.tool }}
         run: |
-          git tag ${{ steps.meta.outputs.version }} ${{ github.sha }}
+          git tag -f ${{ steps.meta.outputs.version }} ${{ github.sha }}
           goreleaser release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}

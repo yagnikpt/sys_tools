@@ -8,6 +8,14 @@ Supports:
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install yagnikpt/tap/article_spawner
+```
+
+### Go
+
 ```bash
 go install github.com/yagnikpt/sys_tools/article_spawner@latest
 ```
@@ -65,16 +73,16 @@ article_spawner
 
 Flags:
 - `--config` path to config yaml (default: `~/.config/article_spawner/config.yaml`)
-- `--list` list all sources from config and exit
-- `--ls` alias for `--list`
+- `--config-path` print default config path
+- `--list | --ls` list all sources from config
 - `--source` force a single source id
-- `--dry-run` print selected article, do not open it
-- `--print` print selected article, do not open it
+- `--dry-run | --print` print selected article, do not open it
 
 ### Examples
 
 ```bash
 article_spawner --dry-run
+article_spawner --config-path
 article_spawner --list
 article_spawner --source hackernews --dry-run
 ```
