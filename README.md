@@ -13,6 +13,9 @@ Pick and open a random article from configured sources. Supports RSS feeds and A
 Instead of getting distracted and spending time on random thing, this helps to quickly spawn a content which is better.
 
 ```bash
+brew install yagnikpt/tap/article_spawner
+```
+```bash
 go install github.com/yagnikpt/sys_tools/article_spawner@latest
 ```
 
@@ -34,6 +37,9 @@ I personally use it to keep track of the books i read.
 | `fzf` | default fuzzy picker |
 | `rofi` | optional picker (`--rofi`) |
 
+```bash
+brew install yagnikpt/tap/bmark
+```
 ```bash
 go install github.com/yagnikpt/sys_tools/bmark@latest
 ```
