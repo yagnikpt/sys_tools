@@ -65,6 +65,8 @@ article_spawner
 
 Flags:
 - `--config` path to config yaml (default: `~/.config/article_spawner/config.yaml`)
+- `--list` list all sources from config and exit
+- `--ls` alias for `--list`
 - `--source` force a single source id
 - `--dry-run` print selected article, do not open it
 - `--print` print selected article, do not open it
@@ -73,8 +75,8 @@ Flags:
 
 ```bash
 article_spawner --dry-run
-article_spawner --source hn --dry-run
-article_spawner --config ~/.config/article_spawner/config.yaml
+article_spawner --list
+article_spawner --source hackernews --dry-run
 ```
 
 ## Add new sources

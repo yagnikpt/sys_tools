@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/yagnikpt/sys_tools/article_spawner/internal/model"
 	"github.com/yagnikpt/sys_tools/article_spawner/internal/source/api"
@@ -28,10 +27,8 @@ type Provider struct {
 }
 
 type articleItem struct {
-	Title                  string `json:"title"`
-	URL                    string `json:"url"`
-	PublishedAt            string `json:"published_at"`
-	PositiveReactionsCount int    `json:"positive_reactions_count"`
+	Title string `json:"title"`
+	URL   string `json:"url"`
 }
 
 func init() {
@@ -123,17 +120,7 @@ func (p *Provider) Fetch(ctx context.Context, limit int) ([]model.Article, error
 			continue
 		}
 
-		article := model.Article{
-			Title: it.Title,
-			URL:   it.URL,
-			Score: it.PositiveReactionsCount,
-		}
-
-		if t, err := time.Parse(time.RFC3339, it.PublishedAt); err == nil {
-			article.PublishedAt = t
-		}
-
-		articles = append(articles, article)
+		articles = append(articles, model.Article{Title: it.Title, URL: it.URL})
 	}
 
 	return articles, nil

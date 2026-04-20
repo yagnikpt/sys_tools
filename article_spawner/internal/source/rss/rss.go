@@ -61,10 +61,6 @@ func (s *Source) Fetch(ctx context.Context, limit int) ([]model.Article, error) 
 			SourceID: s.id,
 		}
 
-		if item.PublishedParsed != nil {
-			article.PublishedAt = *item.PublishedParsed
-		}
-
 		articles = append(articles, article)
 	}
 

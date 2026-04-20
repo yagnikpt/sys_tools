@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/yagnikpt/sys_tools/article_spawner/internal/model"
 	"github.com/yagnikpt/sys_tools/article_spawner/internal/source/api"
@@ -30,8 +29,6 @@ type item struct {
 	Type  string `json:"type"`
 	Title string `json:"title"`
 	URL   string `json:"url"`
-	Time  int64  `json:"time"`
-	Score int    `json:"score"`
 }
 
 func init() {
@@ -113,10 +110,8 @@ func (p *Provider) Fetch(ctx context.Context, limit int) ([]model.Article, error
 			continue
 		}
 		articles = append(articles, model.Article{
-			Title:       it.Title,
-			URL:         it.URL,
-			PublishedAt: time.Unix(it.Time, 0),
-			Score:       it.Score,
+			Title: it.Title,
+			URL:   it.URL,
 		})
 	}
 

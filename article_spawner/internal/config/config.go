@@ -105,7 +105,7 @@ func defaultConfig() Config {
 				},
 			},
 			{
-				ID:      "hn",
+				ID:      "hackernews",
 				Kind:    "api",
 				Enabled: new(true),
 				Weight:  1,

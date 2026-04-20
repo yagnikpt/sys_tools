@@ -1,6 +1,6 @@
 # sys_tools
 
-A collection of personal utility CLI tools for Linux. Btw these tools are vibecoded with reviewing.
+A monorepo of personal utility CLI tools for Linux. Btw these tools are vibecoded with reviewing.
 
 ---
 
