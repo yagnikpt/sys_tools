@@ -33,13 +33,19 @@ jobs:
           go-version-file: ${{ steps.meta.outputs.tool }}/go.mod
           cache-dependency-path: ${{ steps.meta.outputs.tool }}/go.sum
 
-      - name: Run GoReleaser
+      - name: Install GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          workdir: ${{ steps.meta.outputs.tool }}
-          args: release --clean
+          install-only: true
+
+      - name: Run GoReleaser
+        shell: bash
+        working-directory: ${{ steps.meta.outputs.tool }}
+        run: |
+          git tag ${{ steps.meta.outputs.version }} ${{ github.sha }}
+          goreleaser release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.meta.outputs.version }}
