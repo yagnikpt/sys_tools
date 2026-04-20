@@ -21,7 +21,7 @@ go install github.com/yagnikpt/sys_tools/article_spawner@latest
 
 ### `bmark` — PDF reading tracker
 
-Track reading progress across PDF files. Uses Papers as the viewer, syncs last-read page via GIO metadata. Supports fzf and rofi for picking.
+Track reading progress across PDF files. Uses Papers as the viewer, syncs last-read page via GIO metadata. Supports fzf and rofi for picking. To read more [README.md](./bmark/README.md)
 I personally use it to keep track of the books i read.
 
 **Dependencies**

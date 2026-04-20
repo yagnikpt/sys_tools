@@ -1,0 +1,55 @@
+version: 2
+
+project_name: bmark
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: bmark
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - formats: ["tar.gz"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+homebrew_casks:
+  - name: bmark
+    description: "Track reading progress for local PDF/EPUB files and reopen from the last page."
+    homepage: "https://github.com/yagnikpt/sys_tools"
+    repository:
+      owner: yagnikpt
+      name: homebrew-tap
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/bmark"]
+          end
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  name_template: "{{ .ProjectName }} v{{ .Version }}"

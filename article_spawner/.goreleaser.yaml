@@ -1,0 +1,55 @@
+version: 2
+
+project_name: article_spawner
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: article_spawner
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - formats: ["tar.gz"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+homebrew_casks:
+  - name: article_spawner
+    description: "Pick and open a random article from configured sources."
+    homepage: "https://github.com/yagnikpt/sys_tools"
+    repository:
+      owner: yagnikpt
+      name: homebrew-tap
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/article_spawner"]
+          end
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  name_template: "{{ .ProjectName }} v{{ .Version }}"
