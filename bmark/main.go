@@ -4,7 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/adrg/xdg"
 	"github.com/yagnikpt/sys_tools/bmark/launcher"
 	"github.com/yagnikpt/sys_tools/bmark/saves"
 	"github.com/yagnikpt/sys_tools/bmark/scan"
@@ -48,7 +51,7 @@ func main() {
 
 	// bmark [--rofi] /path/to/file
 	case flag.NArg() == 1:
-		path := flag.Arg(0)
+		path := normalizePath(flag.Arg(0))
 		if err := validateFile(path); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
@@ -116,6 +119,7 @@ func handleMenuAction(action string, sp *saves.Saves, sel selector.Selector) err
 		if err != nil {
 			return err
 		}
+		path = normalizePath(path)
 		if err := validateFile(path); err != nil {
 			return err
 		}
@@ -134,4 +138,19 @@ func validateFile(path string) error {
 		return fmt.Errorf("path is a directory: %s", path)
 	}
 	return nil
+}
+
+func normalizePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return path
+	}
+
+	if path == "~" {
+		return xdg.Home
+	}
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Join(xdg.Home, path[2:])
+	}
+	return path
 }
