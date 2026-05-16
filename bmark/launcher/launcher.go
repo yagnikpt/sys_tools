@@ -20,7 +20,7 @@ func Open(book *saves.Book, sp *saves.Saves) error {
 
 	fmt.Printf("opening: %s (last page: %d)\n", book.Title, book.Page)
 
-	cmd := exec.Command("papers", "-i", strconv.Itoa(book.Page), book.Path)
+	cmd := exec.Command("papers", "--fullscreen", "--page-index", strconv.Itoa(book.Page), book.Path)
 	if err := cmd.Run(); err != nil {
 		// Papers exited non-zero — not fatal, still try to sync page
 		fmt.Printf("papers exited: %v\n", err)
