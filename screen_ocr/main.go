@@ -14,11 +14,11 @@ func main() {
 	// Define temporary file path (only used for gnome)
 	tempFile := filepath.Join(os.TempDir(), "screenshot-temp.png")
 
-	session := os.Getenv("DESKTOP_SESSION")
+	session := os.Getenv("XDG_CURRENT_DESKTOP")
 
 	var tesseractOutput string
 
-	if session == "niri" {
+	if session == "niri" || session == "umbriel" {
 		// Use grim and slurp to capture screenshot without saving to file
 		cmd := exec.Command("sh", "-c", "grim -g \"$(slurp -d)\" - | tesseract - stdout -c debug_file=/dev/null")
 		output, err := cmd.CombinedOutput()
