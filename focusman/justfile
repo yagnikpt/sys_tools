@@ -1,0 +1,3 @@
+dev:
+    eval $(cat .env)
+    bun run index.ts

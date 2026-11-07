@@ -1,0 +1,16 @@
+{
+	"name": "focusman",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"typecheck": "bun check"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"pino": "^10.4.0"
+	},
+	"peerDependencies": {
+		"typescript": "^7"
+	}
+}
