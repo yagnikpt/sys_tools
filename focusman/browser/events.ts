@@ -25,6 +25,7 @@ export type BrowserTabEvent = IPCBrowserMessage;
 export interface BrowserMonitorOptions {
 	port?: number;
 	intervalMs?: number;
+	debounceMs?: number;
 	onTabEvent: (tab: IPCBrowserMessage) => Promise<void> | void;
 }
 
@@ -34,6 +35,7 @@ export interface BrowserMonitorHandle {
 
 const DEV_SERVER_PORT = 9222;
 const INTERVAL_MS = 10000;
+const DEBOUNCE_MS = 1000;
 
 async function getBrowserWsUrl(port = DEV_SERVER_PORT): Promise<string> {
 	const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -63,11 +65,35 @@ export function startBrowserMonitor(
 ): BrowserMonitorHandle {
 	const port = options.port ?? DEV_SERVER_PORT;
 	const intervalMs = options.intervalMs ?? INTERVAL_MS;
+	const debounceMs = options.debounceMs ?? DEBOUNCE_MS;
 
 	let running = true;
 	let socket: WebSocket | null = null;
 	const tabsStore = new Map<string, TargetInfo>();
 	const pendingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+
+	function scheduleEvaluation(info: TargetInfo) {
+		tabsStore.set(info.targetId, info);
+
+		const existingTimer = pendingTimeouts.get(info.targetId);
+		if (existingTimer) {
+			clearTimeout(existingTimer);
+		}
+
+		const timer = setTimeout(() => {
+			pendingTimeouts.delete(info.targetId);
+			const current = tabsStore.get(info.targetId);
+			if (current) {
+				options.onTabEvent({
+					targetId: current.targetId,
+					title: current.title,
+					url: current.url,
+				});
+			}
+		}, debounceMs);
+
+		pendingTimeouts.set(info.targetId, timer);
+	}
 
 	async function listenToBrowser(): Promise<void> {
 		const wsUrl = await getBrowserWsUrl(port);
@@ -96,63 +122,36 @@ export function startBrowserMonitor(
 			});
 
 			ws.addEventListener("message", (event) => {
-				const data: CDPEvent = JSON.parse(event.data.toString());
+				let data: CDPEvent;
+				try {
+					data = JSON.parse(event.data.toString()) as CDPEvent;
+				} catch {
+					return;
+				}
 
 				if (!data.method) return;
 
-				// 1. Tab Opened / Discovered
-				if (data.method === "Target.targetCreated") {
+				// 1. Tab Opened / Discovered or Changed
+				if (
+					data.method === "Target.targetCreated" ||
+					data.method === "Target.targetInfoChanged"
+				) {
 					const info = data.params?.targetInfo;
 					if (info?.type === "page" && info.url.startsWith("http")) {
-						// console.log(`[TAB OPENED] (id: ${info.targetId})`);
-						// console.log(`  Title: ${info.title || "(loading...)"}`);
-						// console.log(`  URL:   ${info.url}\n`);
-						tabsStore.set(info.targetId, info);
-
-						const existingTimer = pendingTimeouts.get(info.targetId);
-						if (existingTimer) {
-							clearTimeout(existingTimer);
-						}
-
-						const timer = setTimeout(() => {
-							pendingTimeouts.delete(info.targetId);
-							if (tabsStore.has(info.targetId)) {
-								options.onTabEvent({
-									targetId: info.targetId,
-									title: info.title,
-									url: info.url,
-								});
-								tabsStore.delete(info.targetId);
-							}
-						}, 5000);
-
-						pendingTimeouts.set(info.targetId, timer);
+						scheduleEvaluation(info);
 					}
 				}
 
-				// 2. Tab Navigation / Title / URL Changed
-				else if (data.method === "Target.targetInfoChanged") {
-					const info = data.params?.targetInfo;
-					if (info?.type === "page" && info.url.startsWith("http")) {
-						// console.log(`[TAB CHANGED] (id: ${info.targetId})`);
-						// console.log(`  Title: ${info.title}`);
-						// console.log(`  URL:   ${info.url}\n`);
-
-						const existingTimer = pendingTimeouts.get(info.targetId);
-						if (existingTimer) {
-							clearTimeout(existingTimer);
-							pendingTimeouts.delete(info.targetId);
+				// 2. Tab Closed / Destroyed
+				else if (data.method === "Target.targetDestroyed") {
+					const targetId = data.params?.targetId;
+					if (targetId) {
+						const timer = pendingTimeouts.get(targetId);
+						if (timer) {
+							clearTimeout(timer);
+							pendingTimeouts.delete(targetId);
 						}
-
-						options.onTabEvent({
-							targetId: info.targetId,
-							title: info.title,
-							url: info.url,
-						});
-
-						if (tabsStore.has(info.targetId)) {
-							tabsStore.delete(info.targetId);
-						}
+						tabsStore.delete(targetId);
 					}
 				}
 			});

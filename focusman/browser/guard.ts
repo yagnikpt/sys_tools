@@ -10,6 +10,12 @@ import {
 } from "../lib/prompts";
 import { getMetaDescription } from "../lib/utils";
 
+function matchesDomain(hostname: string, domainPattern: string): boolean {
+	const host = hostname.toLowerCase();
+	const domain = domainPattern.toLowerCase().trim();
+	return host === domain || host.endsWith(`.${domain}`);
+}
+
 export class BrowserMonitorGuard {
 	private cache = new Map<string, { result: DecisionResult; expiry: number }>();
 	private readonly cacheTtlMs: number;
@@ -44,11 +50,39 @@ export class BrowserMonitorGuard {
 		this.client = client ?? new DecisionClient(apiKey, endpoint, model);
 	}
 
+	private setCache(key: string, result: DecisionResult): void {
+		const now = Date.now();
+		if (this.cache.size >= 500) {
+			for (const [k, v] of this.cache.entries()) {
+				if (now >= v.expiry) {
+					this.cache.delete(k);
+				}
+			}
+			if (this.cache.size >= 500) {
+				const firstKey = this.cache.keys().next().value;
+				if (firstKey) this.cache.delete(firstKey);
+			}
+		}
+		this.cache.set(key, {
+			result,
+			expiry: now + this.cacheTtlMs,
+		});
+	}
+
 	async checkActivity(
 		intent: string,
 		title: string,
 		url: string,
 	): Promise<DecisionResult> {
+		if (!intent || !intent.trim()) {
+			return {
+				isOffTask: false,
+				alignment: "direct",
+				confidence: 1.0,
+				probDistracted: 0.0,
+			};
+		}
+
 		// 1. Tier 0: Domain fast paths
 		let parsedUrl: URL;
 		try {
@@ -64,7 +98,7 @@ export class BrowserMonitorGuard {
 
 		if (
 			this.allowList.some((domain) =>
-				parsedUrl.hostname.toLowerCase().endsWith(domain.toLowerCase()),
+				matchesDomain(parsedUrl.hostname, domain),
 			)
 		) {
 			return {
@@ -78,7 +112,7 @@ export class BrowserMonitorGuard {
 		if (
 			parsedUrl.pathname === "/" &&
 			this.homepageAllowList.some((domain) =>
-				parsedUrl.hostname.toLowerCase().endsWith(domain.toLowerCase()),
+				matchesDomain(parsedUrl.hostname, domain),
 			)
 		) {
 			return {
@@ -100,7 +134,7 @@ export class BrowserMonitorGuard {
 
 		if (
 			this.denyList.some((domain) =>
-				url.toLowerCase().includes(domain.toLowerCase()),
+				matchesDomain(parsedUrl.hostname, domain),
 			)
 		) {
 			return {
@@ -122,17 +156,23 @@ export class BrowserMonitorGuard {
 		const desc = await getMetaDescription(url);
 		const state = formatStateFromBrowser(intent, title, desc, url);
 
-		const result = await this.client.evaluate(
-			state,
-			BROWSER_PROMPT_TEMPLATE,
-			`${url} - ${title}`,
-		);
+		try {
+			const result = await this.client.evaluate(
+				state,
+				BROWSER_PROMPT_TEMPLATE,
+				`${url} - ${title}`,
+			);
 
-		// Store in cache
-		this.cache.set(cacheKey, {
-			result,
-			expiry: Date.now() + this.cacheTtlMs,
-		});
-		return result;
+			this.setCache(cacheKey, result);
+			return result;
+		} catch (err) {
+			console.error(`Decision evaluation failed for ${url}:`, err);
+			return {
+				isOffTask: false,
+				alignment: "supporting",
+				confidence: 0.0,
+				probDistracted: 0.0,
+			};
+		}
 	}
 }

@@ -80,6 +80,7 @@ async function main() {
 	let intent = config.intent.default_intent || "";
 
 	const server = Bun.serve({
+		hostname: "127.0.0.1",
 		port: config.server.port,
 		idleTimeout: 25,
 		routes: {
@@ -108,12 +109,17 @@ async function main() {
 		intent = await askIntent(config.intent.prompt_command);
 	}
 
+	if (!intent) {
+		logDev("No focus intent configured. Monitoring paused until intent is set.");
+	}
+
 	// 1. Browser tab monitor (CDP)
 	let browserMonitor: { stop: () => void } | null = null;
 	if (config.browser.enabled) {
 		const bm = new BrowserMonitorGuard(config.browser, config.decision);
 		browserMonitor = startBrowserMonitor({
 			async onTabEvent(tab: IPCBrowserMessage) {
+				if (!intent || !intent.trim()) return;
 				const res = await bm.checkActivity(intent, tab.title, tab.url);
 				if (res.isOffTask) {
 					await closeTab(tab.targetId);
@@ -131,6 +137,7 @@ async function main() {
 		);
 		umbrielMonitor = startUmbrielMonitor({
 			async onWindowFocus(win: UmbrielWindowInfo) {
+				if (!intent || !intent.trim()) return;
 				const res = await systemAppGuard.checkActivity(
 					intent,
 					win.app_id,

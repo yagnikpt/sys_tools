@@ -48,11 +48,39 @@ export class SystemAppGuard {
 		this.promptTemplate = promptTemplate;
 	}
 
+	private setCache(key: string, result: DecisionResult): void {
+		const now = Date.now();
+		if (this.cache.size >= 500) {
+			for (const [k, v] of this.cache.entries()) {
+				if (now >= v.expiry) {
+					this.cache.delete(k);
+				}
+			}
+			if (this.cache.size >= 500) {
+				const firstKey = this.cache.keys().next().value;
+				if (firstKey) this.cache.delete(firstKey);
+			}
+		}
+		this.cache.set(key, {
+			result,
+			expiry: now + this.cacheTtlMs,
+		});
+	}
+
 	async checkActivity(
 		intent: string,
 		appId: string,
 		title: string,
 	): Promise<DecisionResult> {
+		if (!intent || !intent.trim()) {
+			return {
+				isOffTask: false,
+				alignment: "direct",
+				confidence: 1.0,
+				probDistracted: 0.0,
+			};
+		}
+
 		const lowerAppId = appId.toLowerCase();
 
 		// Tier 0: Fast path allow list
@@ -112,18 +140,23 @@ export class SystemAppGuard {
 			desktopInfo?.genericName || desktopInfo?.name,
 		);
 
-		const result = await this.client.evaluate(
-			state,
-			this.promptTemplate,
-			`${appId} - ${title}`,
-		);
+		try {
+			const result = await this.client.evaluate(
+				state,
+				this.promptTemplate,
+				`${appId} - ${title}`,
+			);
 
-		// Store in cache
-		this.cache.set(cacheKey, {
-			result,
-			expiry: Date.now() + this.cacheTtlMs,
-		});
-
-		return result;
+			this.setCache(cacheKey, result);
+			return result;
+		} catch (err) {
+			console.error(`Decision evaluation failed for app ${appId}:`, err);
+			return {
+				isOffTask: false,
+				alignment: "supporting",
+				confidence: 0.0,
+				probDistracted: 0.0,
+			};
+		}
 	}
 }

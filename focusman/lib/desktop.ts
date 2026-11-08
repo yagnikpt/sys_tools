@@ -5,8 +5,6 @@ export interface DesktopEntry {
 	name?: string;
 	genericName?: string;
 	comment?: string;
-	exec?: string;
-	categories?: string[];
 	filePath: string;
 }
 
@@ -110,8 +108,6 @@ export async function parseDesktopFile(
 		let name: string | undefined;
 		let genericName: string | undefined;
 		let comment: string | undefined;
-		let exec: string | undefined;
-		let categories: string[] | undefined;
 
 		for (const line of lines) {
 			const trimmed = line.trim();
@@ -121,7 +117,7 @@ export async function parseDesktopFile(
 				if (trimmed === "[Desktop Entry]") {
 					inDesktopEntrySection = true;
 				} else if (inDesktopEntrySection) {
-					// Stop parsing once we leave [Desktop Entry] (e.g. [Desktop Action ...])
+					// Stop parsing once we leave [Desktop Entry]
 					break;
 				}
 				continue;
@@ -129,21 +125,13 @@ export async function parseDesktopFile(
 
 			if (!inDesktopEntrySection) continue;
 
-			// Match exact unlocalized keys only (e.g. Comment=, not Comment[it]=)
+			// Match exact unlocalized keys only
 			if (!comment && trimmed.startsWith("Comment=")) {
 				comment = trimmed.slice("Comment=".length).trim();
 			} else if (!genericName && trimmed.startsWith("GenericName=")) {
 				genericName = trimmed.slice("GenericName=".length).trim();
 			} else if (!name && trimmed.startsWith("Name=")) {
 				name = trimmed.slice("Name=".length).trim();
-			} else if (!exec && trimmed.startsWith("Exec=")) {
-				exec = trimmed.slice("Exec=".length).trim();
-			} else if (!categories && trimmed.startsWith("Categories=")) {
-				categories = trimmed
-					.slice("Categories=".length)
-					.split(";")
-					.map((c) => c.trim())
-					.filter(Boolean);
 			}
 		}
 
@@ -151,8 +139,6 @@ export async function parseDesktopFile(
 			name,
 			genericName,
 			comment,
-			exec,
-			categories,
 			filePath,
 		};
 	} catch {
@@ -177,14 +163,4 @@ export async function getAppDesktopInfo(
 	const entry = await parseDesktopFile(filePath);
 	desktopCache.set(key, entry);
 	return entry;
-}
-
-export async function getAppComment(appId: string): Promise<string | null> {
-	const entry = await getAppDesktopInfo(appId);
-	return entry?.comment ?? null;
-}
-
-export async function getAppDescription(appId: string): Promise<string | null> {
-	const entry = await getAppDesktopInfo(appId);
-	return entry?.comment || entry?.genericName || null;
 }

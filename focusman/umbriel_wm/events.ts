@@ -29,7 +29,8 @@ function resolveUmbrielSocketPath(explicitPath?: string): string {
 	if (explicitPath) return explicitPath;
 	if (process.env.UMBRIEL_SOCKET) return process.env.UMBRIEL_SOCKET;
 
-	const runtimeDir = process.env.XDG_RUNTIME_DIR || "/run/user/1000";
+	const uid = process.getuid ? process.getuid() : 1000;
+	const runtimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${uid}`;
 	const waylandDisplay = process.env.WAYLAND_DISPLAY || "wayland-0";
 	return `${runtimeDir}/umbriel-${waylandDisplay}.sock`;
 }
@@ -219,9 +220,7 @@ export function startUmbrielMonitor(
 				} catch {}
 				currentSocket = null;
 			}
-			if (activeSocket === currentSocket) {
-				activeSocket = null;
-			}
+			activeSocket = null;
 		},
 		closeWindow,
 	};
