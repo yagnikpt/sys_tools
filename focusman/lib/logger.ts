@@ -1,13 +1,12 @@
 import pino from "pino";
 
-const transport = pino.transport({
-	targets: [
-		{
-			target: "pino/file",
-			options: { destination: "./app.log", mkdir: true },
-			level: "info",
-		},
-	],
-});
-
-export const logger = pino(transport);
+export const logger = pino(
+	{
+		level: "info",
+	},
+	pino.destination({
+		dest: "./app.log",
+		mkdir: true,
+		sync: false,
+	}),
+);

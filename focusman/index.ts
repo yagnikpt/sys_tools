@@ -1,6 +1,16 @@
 import { $ } from "bun";
-import type { IPCBrowserMessage } from "./browser/events.ts";
-import { BrowserMonitor } from "./browser/guard.ts";
+import {
+	closeTab,
+	startBrowserMonitor,
+	type IPCBrowserMessage,
+} from "./browser/events.ts";
+import { BrowserMonitorGuard } from "./browser/guard.ts";
+import {
+	closeWindow,
+	startUmbrielMonitor,
+	type UmbrielWindowInfo,
+} from "./umbriel_wm/events.ts";
+import { SystemAppGuard } from "./umbriel_wm/guard.ts";
 
 function logShellError(err: $.ShellError) {
 	console.log(`Failed with code ${err.exitCode}`);
@@ -10,6 +20,8 @@ function logShellError(err: $.ShellError) {
 
 async function main() {
 	let intent = "";
+	const bm = new BrowserMonitorGuard();
+	const systemAppGuard = new SystemAppGuard();
 
 	const server = Bun.serve({
 		port: 49312,
@@ -42,23 +54,36 @@ async function main() {
 		if (err instanceof $.ShellError) logShellError(err);
 	}
 
-	const browserMonitor = Bun.spawn(["bun", "browser/events.ts"], {
-		async ipc(message: IPCBrowserMessage, childProc) {
-			const bm = new BrowserMonitor();
-			const res = await bm.checkActivity(intent, message.title, message.url);
+	// 1. Browser tab monitor
+	const browserMonitor = startBrowserMonitor({
+		async onTabEvent(tab: IPCBrowserMessage) {
+			const res = await bm.checkActivity(intent, tab.title, tab.url);
 
 			if (res.isOffTask) {
-				childProc.send({
-					targetId: message.targetId,
-				});
+				await closeTab(tab.targetId);
 			}
 		},
-		// stdout: "inherit",
+	});
+
+	// 2. Wayland system apps monitor (Umbriel compositor)
+	const umbrielMonitor = startUmbrielMonitor({
+		async onWindowFocus(win: UmbrielWindowInfo) {
+			const res = await systemAppGuard.checkActivity(
+				intent,
+				win.app_id,
+				win.title,
+			);
+
+			if (res.isOffTask) {
+				await closeWindow(win.id);
+			}
+		},
 	});
 
 	async function cleanup() {
 		await server.stop();
-		browserMonitor.kill("SIGTERM");
+		browserMonitor.stop();
+		umbrielMonitor.stop();
 	}
 
 	process.on("SIGINT", () => {

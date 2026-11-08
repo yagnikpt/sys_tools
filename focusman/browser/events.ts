@@ -20,23 +20,20 @@ export interface IPCBrowserMessage {
 	url: string;
 }
 
-const DEV_SERVER_PORT = 9222;
-const INTERVAL_MS = 10000;
-let shuttingDown = false;
-let socket: WebSocket | null = null;
+export type BrowserTabEvent = IPCBrowserMessage;
 
-for (const sig of ["SIGTERM", "SIGINT"]) {
-	process.on(sig, () => {
-		console.log(`${sig} received`);
-		shuttingDown = true;
-
-		if (socket) {
-			socket.close();
-		}
-	});
+export interface BrowserMonitorOptions {
+	port?: number;
+	intervalMs?: number;
+	onTabEvent: (tab: IPCBrowserMessage) => Promise<void> | void;
 }
 
-const tabsStore = new Map<string, TargetInfo>();
+export interface BrowserMonitorHandle {
+	stop: () => void;
+}
+
+const DEV_SERVER_PORT = 9222;
+const INTERVAL_MS = 10000;
 
 async function getBrowserWsUrl(port = DEV_SERVER_PORT): Promise<string> {
 	const res = await fetch(`http://127.0.0.1:${port}/json/version`);
@@ -52,123 +49,158 @@ async function getBrowserWsUrl(port = DEV_SERVER_PORT): Promise<string> {
 	return data.webSocketDebuggerUrl;
 }
 
-async function closeTab(targetId: string) {
+export async function closeTab(targetId: string, port = DEV_SERVER_PORT) {
 	try {
-		await fetch(`http://127.0.0.1:${DEV_SERVER_PORT}/json/close/${targetId}`);
-		// if (!res.ok) {
-		// 	console.error(`Failed to close tab: ${res.statusText}`);
-		// }
+		await fetch(`http://127.0.0.1:${port}/json/close/${targetId}`);
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : String(err);
 		console.error(`Failed to close tab: ${message}`);
 	}
 }
 
-process.on("message", async (msg: { targetId: string }) => {
-	// console.log("kill", msg.targetId);
-	closeTab(msg.targetId);
-});
+export function startBrowserMonitor(
+	options: BrowserMonitorOptions,
+): BrowserMonitorHandle {
+	const port = options.port ?? DEV_SERVER_PORT;
+	const intervalMs = options.intervalMs ?? INTERVAL_MS;
 
-async function listenToBrowser(): Promise<void> {
-	const wsUrl = await getBrowserWsUrl();
-	console.log(`Connecting to browser CDP: ${wsUrl}`);
+	let running = true;
+	let socket: WebSocket | null = null;
+	const tabsStore = new Map<string, TargetInfo>();
+	const pendingTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
-	return new Promise((resolve) => {
-		const ws = new WebSocket(wsUrl);
-		socket = ws;
+	async function listenToBrowser(): Promise<void> {
+		const wsUrl = await getBrowserWsUrl(port);
+		console.log(`Connecting to browser CDP: ${wsUrl}`);
 
-		ws.addEventListener("open", () => {
-			console.log(" Connected to browser! Listening for tab events...\n");
-
-			// Enable target discovery to stream tab lifecycle & change events
-			ws.send(
-				JSON.stringify({
-					id: 1,
-					method: "Target.setDiscoverTargets",
-					params: { discover: true },
-				}),
-			);
-		});
-
-		ws.addEventListener("message", (event) => {
-			const data: CDPEvent = JSON.parse(event.data.toString());
-
-			if (!data.method) return;
-
-			// 1. Tab Opened / Discovered
-			if (data.method === "Target.targetCreated") {
-				const info = data.params?.targetInfo;
-				if (info?.type === "page" && info.url.startsWith("http")) {
-					console.log(`[TAB OPENED] (id: ${info.targetId})`);
-					console.log(`  Title: ${info.title || "(loading...)"}`);
-					console.log(`  URL:   ${info.url}\n`);
-					tabsStore.set(info.targetId, info);
-					setTimeout(() => {
-						if (tabsStore.has(info.targetId)) {
-							process.send?.({
-								type: "tabOpened",
-								targetId: info.targetId,
-								title: info.title,
-								url: info.url,
-							});
-							tabsStore.delete(info.targetId);
-						}
-					}, 5000);
-				}
+		return new Promise((resolve) => {
+			if (!running) {
+				resolve();
+				return;
 			}
 
-			// 2. Tab Navigation / Title / URL Changed
-			else if (data.method === "Target.targetInfoChanged") {
-				const info = data.params?.targetInfo;
-				if (info?.type === "page" && info.url.startsWith("http")) {
-					console.log(`[TAB CHANGED] (id: ${info.targetId})`);
-					console.log(`  Title: ${info.title}`);
-					console.log(`  URL:   ${info.url}\n`);
-					process.send?.({
-						type: "tabOpened",
-						targetId: info.targetId,
-						title: info.title,
-						url: info.url,
-					});
-					if (tabsStore.has(info.targetId)) {
-						tabsStore.delete(info.targetId);
+			const ws = new WebSocket(wsUrl);
+			socket = ws;
+
+			ws.addEventListener("open", () => {
+				console.log("Connected to browser! Listening for tab events...\n");
+
+				// Enable target discovery to stream tab lifecycle & change events
+				ws.send(
+					JSON.stringify({
+						id: 1,
+						method: "Target.setDiscoverTargets",
+						params: { discover: true },
+					}),
+				);
+			});
+
+			ws.addEventListener("message", (event) => {
+				const data: CDPEvent = JSON.parse(event.data.toString());
+
+				if (!data.method) return;
+
+				// 1. Tab Opened / Discovered
+				if (data.method === "Target.targetCreated") {
+					const info = data.params?.targetInfo;
+					if (info?.type === "page" && info.url.startsWith("http")) {
+						// console.log(`[TAB OPENED] (id: ${info.targetId})`);
+						// console.log(`  Title: ${info.title || "(loading...)"}`);
+						// console.log(`  URL:   ${info.url}\n`);
+						tabsStore.set(info.targetId, info);
+
+						const existingTimer = pendingTimeouts.get(info.targetId);
+						if (existingTimer) {
+							clearTimeout(existingTimer);
+						}
+
+						const timer = setTimeout(() => {
+							pendingTimeouts.delete(info.targetId);
+							if (tabsStore.has(info.targetId)) {
+								options.onTabEvent({
+									targetId: info.targetId,
+									title: info.title,
+									url: info.url,
+								});
+								tabsStore.delete(info.targetId);
+							}
+						}, 5000);
+
+						pendingTimeouts.set(info.targetId, timer);
 					}
 				}
-			}
 
-			// 3. Tab Closed
-			// else if (data.method === "Target.targetDestroyed") {
-			// 	if (data.params?.targetInfo?.type === "page") {
-			// 		console.log(`[TAB CLOSED] (id: ${data.params?.targetId})\n`);
-			// 		if (data.params?.targetId) {
-			// 			tabsStore.delete(data.params.targetId);
-			// 		}
-			// 	}
-			// }
+				// 2. Tab Navigation / Title / URL Changed
+				else if (data.method === "Target.targetInfoChanged") {
+					const info = data.params?.targetInfo;
+					if (info?.type === "page" && info.url.startsWith("http")) {
+						// console.log(`[TAB CHANGED] (id: ${info.targetId})`);
+						// console.log(`  Title: ${info.title}`);
+						// console.log(`  URL:   ${info.url}\n`);
+
+						const existingTimer = pendingTimeouts.get(info.targetId);
+						if (existingTimer) {
+							clearTimeout(existingTimer);
+							pendingTimeouts.delete(info.targetId);
+						}
+
+						options.onTabEvent({
+							targetId: info.targetId,
+							title: info.title,
+							url: info.url,
+						});
+
+						if (tabsStore.has(info.targetId)) {
+							tabsStore.delete(info.targetId);
+						}
+					}
+				}
+			});
+
+			ws.addEventListener("close", () => {
+				console.log("Disconnected from browser.");
+				if (socket === ws) {
+					socket = null;
+				}
+				resolve();
+			});
+
+			ws.addEventListener("error", (err) => {
+				console.error("WebSocket error:", err);
+			});
 		});
+	}
 
-		ws.addEventListener("close", () => {
-			console.log("Disconnected from browser.");
-			if (socket === ws) {
+	(async () => {
+		while (running) {
+			try {
+				await listenToBrowser();
+			} catch (err: unknown) {
+				const message = err instanceof Error ? err.message : String(err);
+				console.error(
+					`Browser connection failed: ${message}, retrying in ${intervalMs}ms`,
+				);
+			}
+			if (running) {
+				await Bun.sleep(intervalMs);
+			}
+		}
+	})();
+
+	return {
+		stop() {
+			running = false;
+
+			for (const timer of pendingTimeouts.values()) {
+				clearTimeout(timer);
+			}
+			pendingTimeouts.clear();
+			tabsStore.clear();
+
+			if (socket) {
+				socket.close();
 				socket = null;
 			}
-			resolve();
-		});
-
-		ws.addEventListener("error", (err) => {
-			console.error("WebSocket error:", err);
-		});
-	});
-}
-
-while (!shuttingDown) {
-	try {
-		await listenToBrowser();
-	} catch (err: unknown) {
-		const message = err instanceof Error ? err.message : String(err);
-		console.error(`failed: ${message}, retrying in ${INTERVAL_MS}ms`);
-	}
-	if (!shuttingDown) {
-		await Bun.sleep(INTERVAL_MS);
-	}
+		},
+	};
 }

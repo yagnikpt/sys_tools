@@ -1,5 +1,9 @@
-import { logger } from "../lib/logger";
-import { formatStateFromBrowser, getMetaDescription } from "../lib/utils";
+import { DecisionClient, type DecisionResult } from "../lib/decision";
+import {
+	BROWSER_PROMPT_TEMPLATE,
+	formatStateFromBrowser,
+} from "../lib/prompts";
+import { getMetaDescription } from "../lib/utils";
 
 export const BROWSER_ALLOW_LIST = [
 	"mail.google.com",
@@ -23,24 +27,17 @@ export const BROWSER_DENY_LIST = [
 	"linkedin.com",
 ];
 
-interface DecisionResult {
-	isOffTask: boolean;
-	alignment: "direct" | "supporting" | "tangent" | "distraction";
-	confidence: number;
-	probDistracted: number;
-}
-
-export class BrowserMonitor {
+export class BrowserMonitorGuard {
 	private cache = new Map<string, { result: DecisionResult; expiry: number }>();
 	private readonly CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+	private client: DecisionClient;
 
 	constructor(
-		private apiKey: string = process.env.API_KEY as string,
-		private endpoint: string = "https://app.vllm-sr.ai/v1/systemone",
-		private model: string = "vllm-sr/d3-flash",
+		apiKey: string = process.env.API_KEY as string,
+		endpoint: string = "https://app.vllm-sr.ai/v1/systemone",
+		model: string = "vllm-sr/d3-flash",
 	) {
-		if (!process.env.API_KEY)
-			throw new Error("API_KEY environment variable not set");
+		this.client = new DecisionClient(apiKey, endpoint, model);
 	}
 
 	async checkActivity(
@@ -96,71 +93,13 @@ export class BrowserMonitor {
 
 		// 3. Tier 2: System One Decision Call
 		const desc = await getMetaDescription(url);
-		const res = await fetch(this.endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${this.apiKey}`,
-			},
-			body: JSON.stringify({
-				model: this.model,
-				state: formatStateFromBrowser(intent, title, desc, url),
-				questions: {
-					alignment: {
-						type: "choice",
-						instructions: "How does this tab relate to the declared intent?",
-						criteria: {
-							direct: "Directly advancing or reading for the stated intent.",
-							supporting:
-								"Required developer tool, search query, reference, or utility.",
-							tangent:
-								"Productive technical content but tangential to the goal.",
-							distraction: "Entertainment, social media, shopping, or leisure.",
-						},
-					},
-					is_off_task: {
-						type: "noul",
-						instructions:
-							"Is this tab an off-task distraction away from the stated intent?",
-						criteria: {
-							true: "Unrelated entertainment, social media feed, casual shopping, or clear distraction.",
-							false:
-								"Directly relevant work, research, technical documentation, or necessary tool.",
-						},
-					},
-				},
-			}),
-		});
+		const state = formatStateFromBrowser(intent, title, desc, url);
 
-		if (!res.ok) {
-			throw new Error(`SystemOne error ${res.status}: ${await res.text()}`);
-		}
-
-		interface SystemOneResponse {
-			answers: {
-				alignment: {
-					choice: "direct" | "supporting" | "tangent" | "distraction";
-					confidence: number;
-				};
-				is_off_task: {
-					noul: number;
-				};
-			};
-		}
-
-		const data = (await res.json()) as SystemOneResponse;
-		const answers = data.answers;
-
-		const result: DecisionResult = {
-			alignment: answers.alignment.choice,
-			confidence: answers.alignment.confidence,
-			probDistracted: answers.is_off_task.noul,
-			isOffTask:
-				answers.is_off_task.noul >= 0.7 ||
-				answers.alignment.choice === "distraction",
-		};
-
-		logger.info(result, title, url);
+		const result = await this.client.evaluate(
+			state,
+			BROWSER_PROMPT_TEMPLATE,
+			`${url} - ${title}`,
+		);
 
 		// Store in cache
 		this.cache.set(cacheKey, {

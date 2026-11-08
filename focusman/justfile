@@ -1,3 +1,7 @@
 dev:
     eval $(cat .env)
     bun run index.ts
+
+build:
+    bun build --compile --outfile focusman index.ts
+
