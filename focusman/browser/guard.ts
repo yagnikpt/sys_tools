@@ -1,3 +1,8 @@
+import {
+	type BrowserConfig,
+	DEFAULT_CONFIG,
+	type DecisionConfig,
+} from "../lib/config";
 import { DecisionClient, type DecisionResult } from "../lib/decision";
 import {
 	BROWSER_PROMPT_TEMPLATE,
@@ -5,39 +10,38 @@ import {
 } from "../lib/prompts";
 import { getMetaDescription } from "../lib/utils";
 
-export const BROWSER_ALLOW_LIST = [
-	"mail.google.com",
-	"in.indeed.com",
-	"codeunnati.edunetfoundation.com",
-	"app.notion.com",
-	"gemini.google.com",
-];
-
-export const HOMEPAGE_ALLOW_LIST = [
-	"youtube.com",
-	"chatgpt.com",
-	"claude.ai",
-	"google.com",
-];
-
-export const BROWSER_DENY_LIST = [
-	"in.pinterest.com",
-	"reddit.com",
-	"x.com",
-	"linkedin.com",
-];
-
 export class BrowserMonitorGuard {
 	private cache = new Map<string, { result: DecisionResult; expiry: number }>();
-	private readonly CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+	private readonly cacheTtlMs: number;
 	private client: DecisionClient;
+	private allowList: string[];
+	private homepageAllowList: string[];
+	private denyList: string[];
 
 	constructor(
-		apiKey: string = process.env.API_KEY as string,
-		endpoint: string = "https://app.vllm-sr.ai/v1/systemone",
-		model: string = "vllm-sr/d3-flash",
+		browserConfig?: Partial<BrowserConfig>,
+		decisionConfig?: Partial<DecisionConfig>,
+		client?: DecisionClient,
 	) {
-		this.client = new DecisionClient(apiKey, endpoint, model);
+		this.allowList =
+			browserConfig?.allow_list ?? DEFAULT_CONFIG.browser.allow_list;
+		this.homepageAllowList =
+			browserConfig?.homepage_allow_list ??
+			DEFAULT_CONFIG.browser.homepage_allow_list;
+		this.denyList =
+			browserConfig?.deny_list ?? DEFAULT_CONFIG.browser.deny_list;
+
+		const ttlMinutes =
+			decisionConfig?.cache_ttl_minutes ??
+			DEFAULT_CONFIG.decision.cache_ttl_minutes;
+		this.cacheTtlMs = ttlMinutes * 60 * 1000;
+
+		const apiKey = decisionConfig?.api_key || (process.env.API_KEY as string);
+		const endpoint =
+			decisionConfig?.endpoint ?? DEFAULT_CONFIG.decision.endpoint;
+		const model = decisionConfig?.model ?? DEFAULT_CONFIG.decision.model;
+
+		this.client = client ?? new DecisionClient(apiKey, endpoint, model);
 	}
 
 	async checkActivity(
@@ -46,43 +50,66 @@ export class BrowserMonitorGuard {
 		url: string,
 	): Promise<DecisionResult> {
 		// 1. Tier 0: Domain fast paths
-		const parsedUrl = new URL(url);
-		if (
-			BROWSER_ALLOW_LIST.some((domain) => parsedUrl.hostname.endsWith(domain))
-		)
+		let parsedUrl: URL;
+		try {
+			parsedUrl = new URL(url);
+		} catch {
 			return {
 				isOffTask: false,
 				alignment: "direct",
 				confidence: 1.0,
 				probDistracted: 0.0,
 			};
+		}
+
+		if (
+			this.allowList.some((domain) =>
+				parsedUrl.hostname.toLowerCase().endsWith(domain.toLowerCase()),
+			)
+		) {
+			return {
+				isOffTask: false,
+				alignment: "direct",
+				confidence: 1.0,
+				probDistracted: 0.0,
+			};
+		}
 
 		if (
 			parsedUrl.pathname === "/" &&
-			HOMEPAGE_ALLOW_LIST.some((domain) => parsedUrl.hostname.endsWith(domain))
-		)
+			this.homepageAllowList.some((domain) =>
+				parsedUrl.hostname.toLowerCase().endsWith(domain.toLowerCase()),
+			)
+		) {
 			return {
 				isOffTask: false,
 				alignment: "direct",
 				confidence: 1.0,
 				probDistracted: 0.0,
 			};
+		}
 
-		if (url.includes("newtab") || title === "New Tab")
+		if (url.includes("newtab") || title === "New Tab") {
 			return {
 				isOffTask: false,
 				alignment: "direct",
 				confidence: 1.0,
 				probDistracted: 0.0,
 			};
+		}
 
-		if (BROWSER_DENY_LIST.some((domain) => url.toLowerCase().includes(domain)))
+		if (
+			this.denyList.some((domain) =>
+				url.toLowerCase().includes(domain.toLowerCase()),
+			)
+		) {
 			return {
 				isOffTask: true,
 				alignment: "distraction",
 				confidence: 1.0,
 				probDistracted: 1.0,
 			};
+		}
 
 		// 2. Tier 1: Cache check
 		const cacheKey = `${intent.toLowerCase()}::${parsedUrl.hostname}::${parsedUrl.pathname}`;
@@ -104,7 +131,7 @@ export class BrowserMonitorGuard {
 		// Store in cache
 		this.cache.set(cacheKey, {
 			result,
-			expiry: Date.now() + this.CACHE_TTL_MS,
+			expiry: Date.now() + this.cacheTtlMs,
 		});
 		return result;
 	}

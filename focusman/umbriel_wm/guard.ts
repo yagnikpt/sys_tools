@@ -1,3 +1,8 @@
+import {
+	DEFAULT_CONFIG,
+	type DecisionConfig,
+	type SystemAppsConfig,
+} from "../lib/config";
 import { DecisionClient, type DecisionResult } from "../lib/decision";
 import { getAppDesktopInfo } from "../lib/desktop";
 import {
@@ -6,43 +11,40 @@ import {
 	SYSTEM_APP_PROMPT_TEMPLATE,
 } from "../lib/prompts";
 
-export const SYSTEM_APP_ALLOW_LIST = [
-	"antigravity",
-	"dev.zed.Zed",
-	"foot",
-	"kitty",
-	"org.gnome.Nautilus",
-	"com.mitchellh.ghostty",
-];
-
-export const BROWSER_TO_IGNORE = ["helium"];
-
-export const SYSTEM_APP_DENY_LIST = [
-	"steam",
-	"discord",
-	"com.discordapp.Discord",
-	"spotify",
-	"com.spotify.Client",
-	"lutris",
-	"heroic",
-	"vlc",
-	"mpv",
-	"telegram-desktop",
-];
-
 export class SystemAppGuard {
 	private cache = new Map<string, { result: DecisionResult; expiry: number }>();
-	private readonly CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+	private readonly cacheTtlMs: number;
 	private client: DecisionClient;
 	private promptTemplate: DecisionPromptTemplate;
+	private allowList: string[];
+	private ignoreBrowsers: string[];
+	private denyList: string[];
 
 	constructor(
-		apiKey: string = process.env.API_KEY as string,
-		endpoint: string = "https://app.vllm-sr.ai/v1/systemone",
-		model: string = "vllm-sr/d3-flash",
+		systemAppsConfig?: Partial<SystemAppsConfig>,
+		decisionConfig?: Partial<DecisionConfig>,
 		promptTemplate: DecisionPromptTemplate = SYSTEM_APP_PROMPT_TEMPLATE,
+		client?: DecisionClient,
 	) {
-		this.client = new DecisionClient(apiKey, endpoint, model);
+		this.allowList =
+			systemAppsConfig?.allow_list ?? DEFAULT_CONFIG.system_apps.allow_list;
+		this.ignoreBrowsers =
+			systemAppsConfig?.ignore_browsers ??
+			DEFAULT_CONFIG.system_apps.ignore_browsers;
+		this.denyList =
+			systemAppsConfig?.deny_list ?? DEFAULT_CONFIG.system_apps.deny_list;
+
+		const ttlMinutes =
+			decisionConfig?.cache_ttl_minutes ??
+			DEFAULT_CONFIG.decision.cache_ttl_minutes;
+		this.cacheTtlMs = ttlMinutes * 60 * 1000;
+
+		const apiKey = decisionConfig?.api_key || (process.env.API_KEY as string);
+		const endpoint =
+			decisionConfig?.endpoint ?? DEFAULT_CONFIG.decision.endpoint;
+		const model = decisionConfig?.model ?? DEFAULT_CONFIG.decision.model;
+
+		this.client = client ?? new DecisionClient(apiKey, endpoint, model);
 		this.promptTemplate = promptTemplate;
 	}
 
@@ -54,7 +56,11 @@ export class SystemAppGuard {
 		const lowerAppId = appId.toLowerCase();
 
 		// Tier 0: Fast path allow list
-		if (SYSTEM_APP_ALLOW_LIST.some((allowed) => lowerAppId.includes(allowed))) {
+		if (
+			this.allowList.some((allowed) =>
+				lowerAppId.includes(allowed.toLowerCase()),
+			)
+		) {
 			return {
 				isOffTask: false,
 				alignment: "direct",
@@ -63,8 +69,12 @@ export class SystemAppGuard {
 			};
 		}
 
-		// 2. Tier 0: Browser ignore list to let the browser module handle the tabs
-		if (BROWSER_TO_IGNORE.some((ignored) => lowerAppId.includes(ignored))) {
+		// Tier 0: Browser ignore list to let the browser module handle the tabs
+		if (
+			this.ignoreBrowsers.some((ignored) =>
+				lowerAppId.includes(ignored.toLowerCase()),
+			)
+		) {
 			return {
 				isOffTask: false,
 				alignment: "direct",
@@ -73,8 +83,10 @@ export class SystemAppGuard {
 			};
 		}
 
-		// Fast path deny list
-		if (SYSTEM_APP_DENY_LIST.some((denied) => lowerAppId.includes(denied))) {
+		// Tier 0: Fast path deny list
+		if (
+			this.denyList.some((denied) => lowerAppId.includes(denied.toLowerCase()))
+		) {
 			return {
 				isOffTask: true,
 				alignment: "distraction",
@@ -109,7 +121,7 @@ export class SystemAppGuard {
 		// Store in cache
 		this.cache.set(cacheKey, {
 			result,
-			expiry: Date.now() + this.CACHE_TTL_MS,
+			expiry: Date.now() + this.cacheTtlMs,
 		});
 
 		return result;
