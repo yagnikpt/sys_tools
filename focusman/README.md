@@ -16,10 +16,12 @@ Set your focus intent via rofi. When you navigate the web, focusman inspects tab
 - [Bun](https://bun.sh)
 - `rofi`
 - Chromium or Chrome running with CDP enabled:
+
   ```bash
   google-chrome-stable --remote-debugging-port=9222
   ```
 - A `vllm-sr` API key in `.env`:
+
   ```ini
   API_KEY=sk-vsr-...
   ```

@@ -2,6 +2,12 @@ import { $ } from "bun";
 import type { IPCBrowserMessage } from "./browser/events.ts";
 import { BrowserMonitor } from "./browser/guard.ts";
 
+function logShellError(err: $.ShellError) {
+	console.log(`Failed with code ${err.exitCode}`);
+	if (err.stdout) console.log(err.stdout.toString());
+	if (err.stderr) console.log(err.stderr.toString());
+}
+
 async function main() {
 	let intent = "";
 
@@ -9,15 +15,14 @@ async function main() {
 		port: 49312,
 		idleTimeout: 25,
 		routes: {
-			"/status": Response.json({ status: "running", intent }, { status: 200 }),
+			"/status": () =>
+				Response.json({ status: "running", intent }, { status: 200 }),
 			"/change-intent": async () => {
 				try {
 					intent =
 						await $`rofi -dmenu -p "Intent: " -theme ~/.config/rofi/modules/input_only.rasi`.text();
-				} catch (err: any) {
-					console.log(`Failed with code ${err.exitCode}`);
-					console.log(err.stdout.toString());
-					console.log(err.stderr.toString());
+				} catch (err: unknown) {
+					if (err instanceof $.ShellError) logShellError(err);
 				}
 				return Response.json({ message: "Intent updated" }, { status: 200 });
 			},
@@ -33,10 +38,8 @@ async function main() {
 	try {
 		intent =
 			await $`rofi -dmenu -p "Intent: " -theme ~/.config/rofi/modules/input_only.rasi`.text();
-	} catch (err: any) {
-		console.log(`Failed with code ${err.exitCode}`);
-		console.log(err.stdout.toString());
-		console.log(err.stderr.toString());
+	} catch (err: unknown) {
+		if (err instanceof $.ShellError) logShellError(err);
 	}
 
 	const browserMonitor = Bun.spawn(["bun", "browser/events.ts"], {
