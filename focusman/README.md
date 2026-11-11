@@ -14,21 +14,19 @@ Set your focus intent via rofi (or default config). When you work, focusman insp
 
 ## Requirements
 
-- [Bun](https://bun.sh) runtime
+- [Bun](https://bun.com) runtime
 - `rofi` (or your preferred dmenu/prompt tool)
 - Chromium or Chrome running with CDP enabled:
   ```bash
   google-chrome-stable --remote-debugging-port=9222
   ```
 - Wayland compositor with Umbriel IPC socket (if using window monitor)
-- A `vllm-sr` API key in `.env` or in `config.toml`:
+- A `vllm-sr` API key ([app.vllm-sr.ai](https://app.vllm-sr.ai)) in `.env` or in `config.toml`:
   ```ini
   API_KEY=sk-vsr-...
   ```
 
 ## Configuration
-
-Focusman follows the XDG Base Directory standard and automatically generates a default TOML configuration on first launch at:
 
 ```
 ~/.config/focusman/config.toml

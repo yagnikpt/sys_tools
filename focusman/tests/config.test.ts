@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_CONFIG, mergeConfig } from "../lib/config";
+import { mergeConfig } from "../lib/config";
 
 describe("Config - browser ports", () => {
 	test("defaults to [9222] when no browser ports are specified", () => {
