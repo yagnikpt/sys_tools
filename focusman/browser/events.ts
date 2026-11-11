@@ -18,11 +18,13 @@ export interface IPCBrowserMessage {
 	targetId: string;
 	title: string;
 	url: string;
+	port: number;
 }
 
 export type BrowserTabEvent = IPCBrowserMessage;
 
 export interface BrowserMonitorOptions {
+	ports?: number[];
 	port?: number;
 	intervalMs?: number;
 	debounceMs?: number;
@@ -56,14 +58,14 @@ export async function closeTab(targetId: string, port = DEV_SERVER_PORT) {
 		await fetch(`http://127.0.0.1:${port}/json/close/${targetId}`);
 	} catch (err: unknown) {
 		const message = err instanceof Error ? err.message : String(err);
-		console.error(`Failed to close tab: ${message}`);
+		console.error(`Failed to close tab on port ${port}: ${message}`);
 	}
 }
 
-export function startBrowserMonitor(
+function startSingleBrowserMonitor(
+	port: number,
 	options: BrowserMonitorOptions,
 ): BrowserMonitorHandle {
-	const port = options.port ?? DEV_SERVER_PORT;
 	const intervalMs = options.intervalMs ?? INTERVAL_MS;
 	const debounceMs = options.debounceMs ?? DEBOUNCE_MS;
 
@@ -88,6 +90,7 @@ export function startBrowserMonitor(
 					targetId: current.targetId,
 					title: current.title,
 					url: current.url,
+					port,
 				});
 			}
 		}, debounceMs);
@@ -97,7 +100,7 @@ export function startBrowserMonitor(
 
 	async function listenToBrowser(): Promise<void> {
 		const wsUrl = await getBrowserWsUrl(port);
-		console.log(`Connecting to browser CDP: ${wsUrl}`);
+		console.log(`[Port ${port}] Connecting to browser CDP: ${wsUrl}`);
 
 		return new Promise((resolve) => {
 			if (!running) {
@@ -109,7 +112,9 @@ export function startBrowserMonitor(
 			socket = ws;
 
 			ws.addEventListener("open", () => {
-				console.log("Connected to browser! Listening for tab events...\n");
+				console.log(
+					`[Port ${port}] Connected to browser! Listening for tab events...\n`,
+				);
 
 				// Enable target discovery to stream tab lifecycle & change events
 				ws.send(
@@ -157,7 +162,7 @@ export function startBrowserMonitor(
 			});
 
 			ws.addEventListener("close", () => {
-				console.log("Disconnected from browser.");
+				console.log(`[Port ${port}] Disconnected from browser.`);
 				if (socket === ws) {
 					socket = null;
 				}
@@ -165,7 +170,7 @@ export function startBrowserMonitor(
 			});
 
 			ws.addEventListener("error", (err) => {
-				console.error("WebSocket error:", err);
+				console.error(`[Port ${port}] WebSocket error:`, err);
 			});
 		});
 	}
@@ -177,7 +182,7 @@ export function startBrowserMonitor(
 			} catch (err: unknown) {
 				const message = err instanceof Error ? err.message : String(err);
 				console.error(
-					`Browser connection failed: ${message}, retrying in ${intervalMs}ms`,
+					`[Port ${port}] Browser connection failed: ${message}, retrying in ${intervalMs}ms`,
 				);
 			}
 			if (running) {
@@ -199,6 +204,30 @@ export function startBrowserMonitor(
 			if (socket) {
 				socket.close();
 				socket = null;
+			}
+		},
+	};
+}
+
+export function startBrowserMonitor(
+	options: BrowserMonitorOptions,
+): BrowserMonitorHandle {
+	const ports =
+		options.ports && options.ports.length > 0
+			? options.ports
+			: options.port !== undefined
+				? [options.port]
+				: [DEV_SERVER_PORT];
+
+	const uniquePorts = Array.from(new Set(ports));
+	const handles = uniquePorts.map((port) =>
+		startSingleBrowserMonitor(port, options),
+	);
+
+	return {
+		stop() {
+			for (const handle of handles) {
+				handle.stop();
 			}
 		},
 	};

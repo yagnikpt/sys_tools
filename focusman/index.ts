@@ -110,7 +110,8 @@ async function main() {
 	}
 
 	if (!intent) {
-		logDev("No focus intent configured. Monitoring paused until intent is set.");
+		process.exit(0)
+		logDev("No focus intent configured. Monitoring paused cancelled intent is set.");
 	}
 
 	// 1. Browser tab monitor (CDP)
@@ -118,11 +119,12 @@ async function main() {
 	if (config.browser.enabled) {
 		const bm = new BrowserMonitorGuard(config.browser, config.decision);
 		browserMonitor = startBrowserMonitor({
+			ports: config.browser.ports,
 			async onTabEvent(tab: IPCBrowserMessage) {
 				if (!intent || !intent.trim()) return;
 				const res = await bm.checkActivity(intent, tab.title, tab.url);
 				if (res.isOffTask) {
-					await closeTab(tab.targetId);
+					await closeTab(tab.targetId, tab.port);
 				}
 			},
 		});

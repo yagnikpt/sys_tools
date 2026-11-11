@@ -20,6 +20,7 @@ export interface DecisionConfig {
 
 export interface BrowserConfig {
 	enabled: boolean;
+	ports: number[];
 	allow_list: string[];
 	homepage_allow_list: string[];
 	deny_list: string[];
@@ -57,6 +58,7 @@ export const DEFAULT_CONFIG: FocusmanConfig = {
 	},
 	browser: {
 		enabled: true,
+		ports: [9222],
 		allow_list: ["mail.google.com", "app.notion.com", "gemini.google.com"],
 		homepage_allow_list: [
 			"youtube.com",
@@ -111,6 +113,15 @@ function toStringArray(val: unknown, fallback: string[]): string[] {
 	return [...fallback];
 }
 
+function toPortArray(val: unknown, fallback: number[]): number[] {
+	const rawArray = Array.isArray(val) ? val : typeof val === "number" || typeof val === "string" ? [val] : [];
+	const ports = rawArray
+		.map((item) => Number(item))
+		.filter((num) => Number.isInteger(num) && num > 0 && num <= 65535);
+
+	return ports.length > 0 ? ports : [...fallback];
+}
+
 export function mergeConfig(
 	parsed: Record<string, any>,
 	defaults: FocusmanConfig = DEFAULT_CONFIG,
@@ -138,6 +149,10 @@ export function mergeConfig(
 		},
 		browser: {
 			enabled: Boolean(parsed.browser?.enabled ?? defaults.browser.enabled),
+			ports: toPortArray(
+				parsed.browser?.ports ?? parsed.browser?.port,
+				defaults.browser.ports,
+			),
 			allow_list: toStringArray(
 				parsed.browser?.allow_list,
 				defaults.browser.allow_list,

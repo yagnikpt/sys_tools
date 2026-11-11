@@ -52,6 +52,7 @@ cache_ttl_minutes = 15
 
 [browser]
 enabled = true
+ports = [9222, 9223]
 allow_list = [
   "mail.google.com",
   "app.notion.com",
