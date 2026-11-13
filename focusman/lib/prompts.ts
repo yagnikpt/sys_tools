@@ -1,3 +1,5 @@
+import { processQueryParams } from "../browser/utils";
+
 export interface DecisionQuestionChoice {
 	type: "choice";
 	instructions: string;
@@ -101,16 +103,13 @@ export function formatStateFromBrowser(
 	try {
 		const parsed = new URL(rawUrl);
 		cleanDomain = parsed.hostname.replace(/^www\./, "");
-		// Keep path and relevant search queries, drop tracking params (utm_*, ref, etc.)
-		const searchParams = new URLSearchParams(parsed.search);
-		const query = searchParams.get("q") || searchParams.get("query") || "";
-		cleanPath =
-			parsed.pathname + (query ? `?q=${encodeURIComponent(query)}` : "");
+		cleanPath = processQueryParams(rawUrl);
 	} catch {
 		cleanDomain = rawUrl;
 	}
 
 	const cleanTitle = title
+		.replace(/^\(\d+\)\s*/, "")
 		.replace(
 			/\s*[-–|]\s*(Google Chrome|Mozilla Firefox|Brave|YouTube|Medium)$/i,
 			"",

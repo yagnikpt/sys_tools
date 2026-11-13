@@ -60,14 +60,20 @@ export class DecisionClient {
 
 		const data = (await res.json()) as SystemOneResponse;
 		const answers = data.answers;
+		const isDistraction = answers.alignment.choice === "distraction";
+		const probDistracted = answers.is_off_task.noul;
+		const confidence = answers.alignment.confidence;
+		const isOffTask =
+			(probDistracted >= 0.75 &&
+				answers.alignment.choice !== "direct" &&
+				answers.alignment.choice !== "supporting") ||
+			(isDistraction && confidence >= 0.65 && probDistracted >= 0.6);
 
 		const result: DecisionResult = {
 			alignment: answers.alignment.choice,
-			confidence: answers.alignment.confidence,
-			probDistracted: answers.is_off_task.noul,
-			isOffTask:
-				answers.is_off_task.noul >= 0.7 ||
-				answers.alignment.choice === "distraction",
+			confidence,
+			probDistracted,
+			isOffTask,
 		};
 
 		if (logLabel) {

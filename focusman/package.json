@@ -4,7 +4,7 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"build": "bun build --compile --outfile focusman index.ts",
+		"build": "NODE_ENV=production bun build --compile ./index.ts --outfile focusman",
 		"typecheck": "bun check"
 	},
 	"devDependencies": {

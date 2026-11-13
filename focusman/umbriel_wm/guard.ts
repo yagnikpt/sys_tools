@@ -72,7 +72,7 @@ export class SystemAppGuard {
 		appId: string,
 		title: string,
 	): Promise<DecisionResult> {
-		if (!intent || !intent.trim()) {
+		if (!intent?.trim()) {
 			return {
 				isOffTask: false,
 				alignment: "direct",

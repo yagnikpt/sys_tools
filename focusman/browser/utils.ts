@@ -73,4 +73,28 @@ export async function getMetaDescription(url: string): Promise<string | null> {
 	}
 }
 
-export * from "./desktop.ts";
+export function processQueryParams(url: string) {
+	const parsed = new URL(url);
+	const searchParams = new URLSearchParams(parsed.search);
+	const TRACKING_PARAMS = new Set([
+		"utm_source",
+		"utm_medium",
+		"utm_campaign",
+		"utm_term",
+		"utm_content",
+		"ref",
+		"ref_src",
+		"fbclid",
+		"gclid",
+		"si",
+		"feature",
+	]);
+	for (const key of Array.from(searchParams.keys())) {
+		if (key.startsWith("utm_") || TRACKING_PARAMS.has(key.toLowerCase())) {
+			searchParams.delete(key);
+		}
+	}
+	const searchStr = searchParams.toString();
+	const cleanPath = parsed.pathname + (searchStr ? `?${searchStr}` : "");
+	return cleanPath;
+}

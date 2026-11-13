@@ -8,7 +8,7 @@ import {
 	BROWSER_PROMPT_TEMPLATE,
 	formatStateFromBrowser,
 } from "../lib/prompts";
-import { getMetaDescription } from "../lib/utils";
+import { getMetaDescription, processQueryParams } from "./utils";
 
 function matchesDomain(hostname: string, domainPattern: string): boolean {
 	const host = hostname.toLowerCase();
@@ -74,7 +74,7 @@ export class BrowserMonitorGuard {
 		title: string,
 		url: string,
 	): Promise<DecisionResult> {
-		if (!intent || !intent.trim()) {
+		if (!intent?.trim()) {
 			return {
 				isOffTask: false,
 				alignment: "direct",
@@ -97,9 +97,7 @@ export class BrowserMonitorGuard {
 		}
 
 		if (
-			this.allowList.some((domain) =>
-				matchesDomain(parsedUrl.hostname, domain),
-			)
+			this.allowList.some((domain) => matchesDomain(parsedUrl.hostname, domain))
 		) {
 			return {
 				isOffTask: false,
@@ -133,9 +131,7 @@ export class BrowserMonitorGuard {
 		}
 
 		if (
-			this.denyList.some((domain) =>
-				matchesDomain(parsedUrl.hostname, domain),
-			)
+			this.denyList.some((domain) => matchesDomain(parsedUrl.hostname, domain))
 		) {
 			return {
 				isOffTask: true,
@@ -146,7 +142,8 @@ export class BrowserMonitorGuard {
 		}
 
 		// 2. Tier 1: Cache check
-		const cacheKey = `${intent.toLowerCase()}::${parsedUrl.hostname}::${parsedUrl.pathname}`;
+		const cleanPath = processQueryParams(url);
+		const cacheKey = `${intent.toLowerCase()}::${parsedUrl.hostname}::${cleanPath}`;
 		const cached = this.cache.get(cacheKey);
 		if (cached && Date.now() < cached.expiry) {
 			return cached.result;

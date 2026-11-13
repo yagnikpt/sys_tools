@@ -110,8 +110,10 @@ async function main() {
 	}
 
 	if (!intent) {
-		process.exit(0)
-		logDev("No focus intent configured. Monitoring paused cancelled intent is set.");
+		logDev(
+			"No focus intent configured. Monitoring paused cancelled intent is set.",
+		);
+		process.exit(0);
 	}
 
 	// 1. Browser tab monitor (CDP)
@@ -121,7 +123,7 @@ async function main() {
 		browserMonitor = startBrowserMonitor({
 			ports: config.browser.ports,
 			async onTabEvent(tab: IPCBrowserMessage) {
-				if (!intent || !intent.trim()) return;
+				if (!intent?.trim()) return;
 				const res = await bm.checkActivity(intent, tab.title, tab.url);
 				if (res.isOffTask) {
 					await closeTab(tab.targetId, tab.port);
@@ -139,7 +141,7 @@ async function main() {
 		);
 		umbrielMonitor = startUmbrielMonitor({
 			async onWindowFocus(win: UmbrielWindowInfo) {
-				if (!intent || !intent.trim()) return;
+				if (!intent?.trim()) return;
 				const res = await systemAppGuard.checkActivity(
 					intent,
 					win.app_id,
