@@ -9,7 +9,7 @@ Set your focus intent via rofi (or default config). When you work, focusman insp
 1. **Prompt**: Asks for your task via `rofi` on startup or on demand (configurable).
 2. **Fast-Path Rules**: Instant allow/deny evaluation using user-defined whitelist and blacklist lists.
 3. **Memory Cache**: Caches model decisions for 15 minutes (configurable) to avoid repeated API calls.
-4. **LLM Evaluation**: Evaluates app/tab context against your intent using a System One decision model (`vllm-sr/d3-flash`).
+4. **LLM Evaluation**: Evaluates app/tab context against your intent using a System One decision model (providers: `gemini`, `vllm_sr`).
 5. **Action**: Automatically closes off-task tabs or windows.
 
 ## Requirements
@@ -21,10 +21,12 @@ Set your focus intent via rofi (or default config). When you work, focusman insp
   google-chrome-stable --remote-debugging-port=9222
   ```
 - Wayland compositor with Umbriel IPC socket (if using window monitor)
-- A `vllm-sr` API key ([app.vllm-sr.ai](https://app.vllm-sr.ai)) in `.env` or in `config.toml`:
+- A `provider` API key in `.env` or in `config.toml`:
   ```ini
-  API_KEY=sk-vsr-...
+  API_KEY=...
   ```
+  - [Gemini](https://aistudio.google.com/api-keys)
+  - [VLLM SR](https://app.vllm-sr.ai)
 
 ## Configuration
 
@@ -43,8 +45,9 @@ prompt_command = 'rofi -dmenu -p "Intent: " -theme ~/.config/rofi/modules/input_
 default_intent = ""
 
 [decision]
-endpoint = "https://app.vllm-sr.ai/v1/systemone"
-model = "vllm-sr/d3-flash"
+provider = "gemini" # gemini, vllm_sr
+endpoint = "https://generativelanguage.googleapis.com/v1beta/decisions"
+model = "gemini-decision-1"
 cache_ttl_minutes = 15
 # api_key = "" # Leave empty to use process.env.API_KEY
 

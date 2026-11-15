@@ -1,4 +1,5 @@
 import { processQueryParams } from "../browser/utils";
+import { PROVIDERS } from "./provider_templates";
 
 export interface DecisionQuestionChoice {
 	type: "choice";
@@ -12,67 +13,75 @@ export interface DecisionQuestionNoul {
 	criteria: Record<string, string>;
 }
 
-export interface DecisionPromptTemplate {
+export type DecisionPromptTemplate = (provider: string) => {
 	questions: {
 		alignment: DecisionQuestionChoice;
 		is_off_task: DecisionQuestionNoul;
 	};
-}
-
-export const BROWSER_PROMPT_TEMPLATE: DecisionPromptTemplate = {
-	questions: {
-		alignment: {
-			type: "choice",
-			instructions: "How does this tab relate to the declared intent?",
-			criteria: {
-				direct: "Directly advancing or reading for the stated intent.",
-				supporting:
-					"Required developer tool, search query, reference, or utility.",
-				tangent: "Productive technical content but tangential to the goal.",
-				distraction: "Entertainment, social media, shopping, or leisure.",
-			},
-		},
-		is_off_task: {
-			type: "noul",
-			instructions:
-				"Is this tab an off-task distraction away from the stated intent?",
-			criteria: {
-				true: "Unrelated entertainment, social media feed, casual shopping, or clear distraction.",
-				false:
-					"Directly relevant work, research, technical documentation, or necessary tool.",
-			},
-		},
-	},
 };
 
-export const SYSTEM_APP_PROMPT_TEMPLATE: DecisionPromptTemplate = {
-	questions: {
-		alignment: {
-			type: "choice",
-			instructions:
-				"How does this system application / window relate to the user's declared intent?",
-			criteria: {
-				direct:
-					"Directly advancing the stated intent (e.g. IDE, target document, active workspace).",
-				supporting:
-					"Required utility, terminal command, file manager, reference tool, or debugger.",
-				tangent:
-					"Productive or system configuration activity, but tangential to primary goal.",
-				distraction:
-					"Games, casual chatting, entertainment media, social apps, or leisure.",
+export const BROWSER_PROMPT_TEMPLATE: DecisionPromptTemplate = (provider) => {
+	return {
+		questions: {
+			alignment: {
+				type: "choice",
+				instructions: "How does this tab relate to the declared intent?",
+				criteria: {
+					direct: "Directly advancing or reading for the stated intent.",
+					supporting:
+						"Required developer tool, search query, reference, or utility.",
+					tangent: "Productive technical content but tangential to the goal.",
+					distraction: "Entertainment, social media, shopping, or leisure.",
+				},
+			},
+			is_off_task: {
+				type: "noul",
+				instructions:
+					"Is this tab an off-task distraction away from the stated intent?",
+				criteria: {
+					[PROVIDERS[provider]?.noul_criteria_true ?? "true_description"]:
+						"Unrelated entertainment, social media feed, casual shopping, or clear distraction.",
+					[PROVIDERS[provider]?.noul_criteria_false ?? "false_description"]:
+						"Directly relevant work, research, technical documentation, or necessary tool.",
+				},
 			},
 		},
-		is_off_task: {
-			type: "noul",
-			instructions:
-				"Is using this application an off-task distraction away from the user's declared intent?",
-			criteria: {
-				true: "Unrelated video game, casual social feed, media player for leisure, or clear distraction.",
-				false:
-					"Work-related tool, coding environment, terminal, document reader, or legitimate utility.",
+	};
+};
+
+export const SYSTEM_APP_PROMPT_TEMPLATE: DecisionPromptTemplate = (
+	provider,
+) => {
+	return {
+		questions: {
+			alignment: {
+				type: "choice",
+				instructions:
+					"How does this system application / window relate to the user's declared intent?",
+				criteria: {
+					direct:
+						"Directly advancing the stated intent (e.g. IDE, target document, active workspace).",
+					supporting:
+						"Required utility, terminal command, file manager, reference tool, or debugger.",
+					tangent:
+						"Productive or system configuration activity, but tangential to primary goal.",
+					distraction:
+						"Games, casual chatting, entertainment media, social apps, or leisure.",
+				},
+			},
+			is_off_task: {
+				type: "noul",
+				instructions:
+					"Is using this application an off-task distraction away from the user's declared intent?",
+				criteria: {
+					[PROVIDERS[provider]?.noul_criteria_true ?? "true_description"]:
+						"Unrelated video game, casual social feed, media player for leisure, or clear distraction.",
+					[PROVIDERS[provider]?.noul_criteria_false ?? "false_description"]:
+						"Work-related tool, coding environment, terminal, document reader, or legitimate utility.",
+				},
 			},
 		},
-	},
+	};
 };
 
 export function formatStateFromApp(

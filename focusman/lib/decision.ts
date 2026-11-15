@@ -3,6 +3,7 @@ import {
 	type DecisionPromptTemplate,
 	SYSTEM_APP_PROMPT_TEMPLATE,
 } from "./prompts";
+import { PROVIDERS } from "./provider_templates";
 
 export interface DecisionResult {
 	isOffTask: boolean;
@@ -25,9 +26,10 @@ interface SystemOneResponse {
 
 export class DecisionClient {
 	constructor(
-		private apiKey: string = process.env.API_KEY as string,
-		private endpoint: string = "https://app.vllm-sr.ai/v1/systemone",
-		private model: string = "vllm-sr/d3-flash",
+		private provider: string,
+		private apiKey: string,
+		private endpoint: string,
+		private model: string,
 	) {
 		if (!this.apiKey) {
 			throw new Error("API_KEY environment variable not set");
@@ -43,12 +45,12 @@ export class DecisionClient {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
-				Authorization: `Bearer ${this.apiKey}`,
+				...PROVIDERS[this.provider]?.header(this.apiKey),
 			},
 			body: JSON.stringify({
 				model: this.model,
-				state,
-				questions: template.questions,
+				[PROVIDERS[this.provider]?.input ?? "input"]: state,
+				questions: template(this.provider).questions,
 			}),
 		});
 

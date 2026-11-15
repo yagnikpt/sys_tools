@@ -12,6 +12,7 @@ export interface IntentConfig {
 }
 
 export interface DecisionConfig {
+	provider: string;
 	endpoint: string;
 	model: string;
 	cache_ttl_minutes: number;
@@ -51,8 +52,9 @@ export const DEFAULT_CONFIG: FocusmanConfig = {
 		default_intent: "",
 	},
 	decision: {
-		endpoint: "https://app.vllm-sr.ai/v1/systemone",
-		model: "vllm-sr/d3-flash",
+		provider: "gemini",
+		endpoint: "https://generativelanguage.googleapis.com/v1beta/decisions",
+		model: "gemini-decision-1",
 		cache_ttl_minutes: 15,
 		api_key: "",
 	},
@@ -95,7 +97,6 @@ export function serializeConfig(
 	config: FocusmanConfig = DEFAULT_CONFIG,
 ): string {
 	return `# Focusman Configuration File
-# Location: ~/.config/focusman/config.toml
 
 ${Bun.TOML.stringify(config as unknown as Record<string, any>)}`;
 }
@@ -114,7 +115,11 @@ function toStringArray(val: unknown, fallback: string[]): string[] {
 }
 
 function toPortArray(val: unknown, fallback: number[]): number[] {
-	const rawArray = Array.isArray(val) ? val : typeof val === "number" || typeof val === "string" ? [val] : [];
+	const rawArray = Array.isArray(val)
+		? val
+		: typeof val === "number" || typeof val === "string"
+			? [val]
+			: [];
 	const ports = rawArray
 		.map((item) => Number(item))
 		.filter((num) => Number.isInteger(num) && num > 0 && num <= 65535);
@@ -139,6 +144,7 @@ export function mergeConfig(
 			),
 		},
 		decision: {
+			provider: String(parsed.decision?.provider ?? defaults.decision.provider),
 			endpoint: String(parsed.decision?.endpoint ?? defaults.decision.endpoint),
 			model: String(parsed.decision?.model ?? defaults.decision.model),
 			cache_ttl_minutes: Number(

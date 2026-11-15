@@ -42,12 +42,15 @@ export class BrowserMonitorGuard {
 			DEFAULT_CONFIG.decision.cache_ttl_minutes;
 		this.cacheTtlMs = ttlMinutes * 60 * 1000;
 
+		const provider =
+			decisionConfig?.provider ?? DEFAULT_CONFIG.decision.provider;
 		const apiKey = decisionConfig?.api_key || (process.env.API_KEY as string);
 		const endpoint =
 			decisionConfig?.endpoint ?? DEFAULT_CONFIG.decision.endpoint;
 		const model = decisionConfig?.model ?? DEFAULT_CONFIG.decision.model;
 
-		this.client = client ?? new DecisionClient(apiKey, endpoint, model);
+		this.client =
+			client ?? new DecisionClient(provider, apiKey, endpoint, model);
 	}
 
 	private setCache(key: string, result: DecisionResult): void {
