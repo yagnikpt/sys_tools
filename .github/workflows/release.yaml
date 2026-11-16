@@ -3,7 +3,8 @@ name: Release
 on:
   push:
     tags:
-      - "*/v*" # matches bmark/v1.0.0, article_spawner/v0.2.0
+      - "bmark/v*"
+      - "article_spawner/v*"
 
 jobs:
   release:

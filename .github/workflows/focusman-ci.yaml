@@ -1,0 +1,39 @@
+name: Focusman CI
+
+on:
+  push:
+    paths:
+      - "focusman/**"
+      - ".github/workflows/focusman-ci.yaml"
+  pull_request:
+    paths:
+      - "focusman/**"
+      - ".github/workflows/focusman-ci.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: focusman
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Run tests
+        run: bun test
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build Linux binary
+        run: bun run build

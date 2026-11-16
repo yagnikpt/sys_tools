@@ -1,0 +1,42 @@
+name: Focusman Release
+
+on:
+  push:
+    tags:
+      - "focusman/v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: focusman
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Run tests
+        run: bun test
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build Linux binary
+        run: bun run build
+
+      - name: Name release asset
+        run: mv focusman focusman-linux-x86_64
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" focusman-linux-x86_64 --verify-tag --title "$GITHUB_REF_NAME" --generate-notes

@@ -86,10 +86,14 @@ describe("End-to-end multi-browser guard integration", () => {
 		const s2 = await createMockCDPServer();
 		serversToClean.push(s1, s2);
 
-		const guard = new BrowserMonitorGuard({
-			allow_list: ["allowed.com"],
-			deny_list: ["distraction.com"],
-		});
+		// Both URLs use local fast paths, so no real provider key is needed.
+		const guard = new BrowserMonitorGuard(
+			{
+				allow_list: ["allowed.com"],
+				deny_list: ["distraction.com"],
+			},
+			{ api_key: "test-only" },
+		);
 
 		const intent = "coding feature";
 
