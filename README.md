@@ -1,10 +1,24 @@
 # sys_tools
 
-A monorepo of personal utility CLI tools for Linux. Btw these tools are vibecoded with reviewing.
+A monorepo of personal utility CLI tools for Linux. Btw some tools are vibecoded with reviewing.
 
 ---
 
 ## Tools
+
+### `focusman` — stay focused while working
+
+A background focus daemon for Wayland and Chromium that closes browser tabs or windows that drift from your current task. To read more [README.md](./focusman/README.md)
+
+Requires Bun, a prompt tool such as rofi, Chromium with CDP enabled, and an API key for the configured decision provider.
+
+```bash
+cd focusman
+bun install
+bun run index.ts
+```
+
+---
 
 ### `article_spawner` — open a random article
 
@@ -15,6 +29,7 @@ Instead of getting distracted and spending time on random thing, this helps to q
 ```bash
 brew install yagnikpt/tap/article_spawner
 ```
+
 ```bash
 go install github.com/yagnikpt/sys_tools/article_spawner@latest
 ```
@@ -29,23 +44,23 @@ I personally use it to keep track of the books i read.
 
 **Dependencies**
 
-| Tool | Purpose |
-|------|---------|
-| `papers` | PDF viewer |
-| `gio` | reads last-read page from file metadata |
-| `pdfinfo` | reads file metadata |
-| `fzf` | default fuzzy picker |
-| `rofi` | optional picker (`--rofi`) |
+| Tool      | Purpose                                 |
+| --------- | --------------------------------------- |
+| `papers`  | PDF viewer                              |
+| `gio`     | reads last-read page from file metadata |
+| `pdfinfo` | reads file metadata                     |
+| `fzf`     | default fuzzy picker                    |
+| `rofi`    | optional picker (`--rofi`)              |
 
 ```bash
 brew install yagnikpt/tap/bmark
 ```
+
 ```bash
 go install github.com/yagnikpt/sys_tools/bmark@latest
 ```
 
 ---
-
 
 ### `screen_ocr` — screenshot to clipboard via OCR
 
@@ -53,10 +68,10 @@ Select a region of the screen, extract text from it, copy to clipboard. Supports
 
 **Dependencies**
 
-| Tool | Purpose |
-|------|---------|
-| `tesseract` | OCR engine |
-| `grim` + `slurp` | screenshot capture (niri) |
+| Tool               | Purpose                    |
+| ------------------ | -------------------------- |
+| `tesseract`        | OCR engine                 |
+| `grim` + `slurp`   | screenshot capture (niri)  |
 | `gnome-screenshot` | screenshot capture (GNOME) |
 
 ```bash
