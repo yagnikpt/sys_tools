@@ -23,12 +23,8 @@ checksum:
 
 homebrew_casks:
   - name: pagewatch
-    binaries:
-      - pagewatch
     description: "Track changes in selected regions of web pages."
     homepage: "https://github.com/yagnikpt/sys-tools/tree/main/pagewatch"
-    url:
-      template: "https://github.com/yagnikpt/sys-tools/releases/download/{{ .Env.RELEASE_TAG }}/{{ .ArtifactName }}"
     repository:
       owner: yagnikpt
       name: homebrew-tap
