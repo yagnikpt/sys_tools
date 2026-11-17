@@ -5,6 +5,7 @@ on:
     tags:
       - "bmark/v*"
       - "article_spawner/v*"
+      - "pagewatch/v*"
 
 jobs:
   release:
@@ -22,9 +23,8 @@ jobs:
       - name: Extract tool name from tag
         id: meta
         run: |
-          TAG="${GITHUB_REF_NAME}"
-          TOOL=$(echo "$TAG" | cut -d'/' -f1)
-          VERSION=$(echo "$TAG" | cut -d'/' -f2)
+          TOOL="${GITHUB_REF_NAME%%/*}"
+          VERSION="${GITHUB_REF_NAME#*/}"
           echo "tool=$TOOL" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -45,8 +45,27 @@ jobs:
         shell: bash
         working-directory: ${{ steps.meta.outputs.tool }}
         run: |
-          git tag -f ${{ steps.meta.outputs.version }} ${{ github.sha }}
-          goreleaser release --clean
+          git tag -f "$VERSION" "$GITHUB_SHA"
+          if [[ "$TOOL" == "pagewatch" ]]; then
+            goreleaser release --clean --skip=publish
+            assets=(dist/*.tar.gz dist/*checksums.txt)
+            if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
+              if [[ "$draft" == "true" ]]; then
+                gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+                gh release edit "$RELEASE_TAG" --title "$TOOL $VERSION" --draft=false
+              else
+                echo "GitHub release $RELEASE_TAG already published; skipping asset upload"
+              fi
+            else
+              gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --title "$TOOL $VERSION" --generate-notes
+            fi
+          else
+            goreleaser release --clean
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TOOL: ${{ steps.meta.outputs.tool }}
           GORELEASER_CURRENT_TAG: ${{ steps.meta.outputs.version }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_TAG: ${{ github.ref_name }}

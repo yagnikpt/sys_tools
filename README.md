@@ -2,8 +2,6 @@
 
 A monorepo of personal utility CLI tools for Linux. Btw some tools are vibecoded with reviewing.
 
----
-
 ## Tools
 
 ### `focusman` — stay focused while working
@@ -27,7 +25,7 @@ Pick and open a random article from configured sources. Supports RSS feeds and A
 Instead of getting distracted and spending time on random thing, this helps to quickly spawn a content which is better.
 
 ```bash
-brew install yagnikpt/tap/article_spawner
+brew install --cask yagnikpt/tap/article_spawner
 ```
 
 ```bash
@@ -53,7 +51,7 @@ I personally use it to keep track of the books i read.
 | `rofi`    | optional picker (`--rofi`)              |
 
 ```bash
-brew install yagnikpt/tap/bmark
+brew install --cask yagnikpt/tap/bmark
 ```
 
 ```bash
@@ -77,3 +75,19 @@ Select a region of the screen, extract text from it, copy to clipboard. Supports
 ```bash
 go install github.com/yagnikpt/sys_tools/screen_ocr@latest
 ```
+
+---
+
+### `pagewatch` — web page change notifier
+
+Watch selected page content and send a desktop notification when it changes. Supports regular HTML pages and optional headless Chromium rendering for JavaScript-built pages. See the [pagewatch README](./pagewatch/README.md).
+
+```bash
+brew install --cask yagnikpt/tap/pagewatch
+```
+
+```bash
+go install github.com/yagnikpt/sys_tools/pagewatch@latest
+```
+
+On Linux, `notify-send` is required. On macOS, pagewatch uses `osascript`. Install Chrome or Chromium to use `render = true` sources. Release tags use `pagewatch/vX.Y.Z`; the workflow builds binaries with GoReleaser, creates the GitHub release, and updates the Homebrew tap.

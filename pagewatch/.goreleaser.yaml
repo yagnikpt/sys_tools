@@ -1,0 +1,51 @@
+version: 2
+
+project_name: pagewatch
+
+builds:
+  - main: .
+    binary: pagewatch
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: ["tar.gz"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_checksums.txt"
+
+homebrew_casks:
+  - name: pagewatch
+    binaries:
+      - pagewatch
+    description: "Track changes in selected regions of web pages."
+    homepage: "https://github.com/yagnikpt/sys-tools/tree/main/pagewatch"
+    url:
+      template: "https://github.com/yagnikpt/sys-tools/releases/download/{{ .Env.RELEASE_TAG }}/{{ .ArtifactName }}"
+    repository:
+      owner: yagnikpt
+      name: homebrew-tap
+    caveats: "Install Chrome or Chromium to use sources configured with render = true."
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/pagewatch"]
+          end
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  name_template: "{{ .ProjectName }} v{{ .Version }}"
