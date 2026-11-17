@@ -2,6 +2,10 @@ version: 2
 
 project_name: pagewatch
 
+before:
+  hooks:
+    - go mod tidy
+
 builds:
   - main: .
     binary: pagewatch
@@ -24,7 +28,7 @@ checksum:
 homebrew_casks:
   - name: pagewatch
     description: "Track changes in selected regions of web pages."
-    homepage: "https://github.com/yagnikpt/sys-tools/tree/main/pagewatch"
+    homepage: "https://github.com/yagnikpt/sys-tools"
     repository:
       owner: yagnikpt
       name: homebrew-tap
