@@ -16,6 +16,8 @@ IDs must be unique. A selector that matches no nodes is reported as an error and
 
 ```sh
 go run .
+go run . --output   # print fetched data by source to stdout
+go run . -o         # short alias
 go run . --populate # fetch and refresh all hashes without notifications
 go run . -p         # short alias
 go run . -config ./sources.toml -hashfile ./hashfile

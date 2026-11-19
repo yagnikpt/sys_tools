@@ -47,15 +47,17 @@ func main() {
 	hashPath := flag.String("hashfile", filepath.Join(xdg.ConfigHome, appName, "hashfile"), "path to stored hashes")
 	populate := flag.Bool("populate", false, "fetch all sources and update hashes without notifications")
 	populateShort := flag.Bool("p", false, "alias for --populate")
+	output := flag.Bool("output", false, "print fetched data by source to stdout")
+	outputShort := flag.Bool("o", false, "alias for --output")
 	flag.Parse()
 
-	if err := run(*configPath, *hashPath, *populate || *populateShort); err != nil {
+	if err := run(*configPath, *hashPath, *populate || *populateShort, *output || *outputShort); err != nil {
 		fmt.Fprintln(os.Stderr, "pagewatch:", err)
 		os.Exit(1)
 	}
 }
 
-func run(configPath, hashPath string, populate bool) error {
+func run(configPath, hashPath string, populate, printOutput bool) error {
 	cfg, err := loadConfig(configPath)
 	if err != nil {
 		return err
@@ -83,7 +85,7 @@ func run(configPath, hashPath string, populate bool) error {
 	}()
 	var failures []error
 	for _, src := range cfg.Sources {
-		var hash string
+		var content string
 		if src.Render {
 			if renderer == nil && rendererErr == nil {
 				renderer, rendererErr = newPageRenderer()
@@ -92,15 +94,24 @@ func run(configPath, hashPath string, populate bool) error {
 				failures = append(failures, fmt.Errorf("%s: start Chromium: %w", src.ID, rendererErr))
 				continue
 			}
-			hash, err = renderedPageHash(renderer, src)
+			content, err = renderedPageContent(renderer, src)
 		} else {
-			hash, err = pageHash(client, src)
+			content, err = pageContent(client, src)
 		}
 		if err != nil {
 			failures = append(failures, fmt.Errorf("%s: %w", src.ID, err))
 			continue
 		}
 
+		if printOutput {
+			if strings.HasSuffix(content, "\n") {
+				fmt.Printf("--- %s ---\n%s", src.ID, content)
+			} else {
+				fmt.Printf("--- %s ---\n%s\n", src.ID, content)
+			}
+		}
+
+		hash := hashContent(content)
 		old, exists := previous[src.ID]
 		if !populate && exists && old != hash {
 			if err := notify(src); err != nil {
@@ -160,7 +171,7 @@ func validate(cfg config) error {
 	return nil
 }
 
-func pageHash(client *http.Client, src source) (string, error) {
+func pageContent(client *http.Client, src source) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, src.URL, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
@@ -178,7 +189,7 @@ func pageHash(client *http.Client, src source) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse HTML: %w", err)
 	}
-	return hashDocument(doc, src.TargetXPath)
+	return extractContent(doc, src.TargetXPath)
 }
 
 func newPageRenderer() (*pageRenderer, error) {
@@ -197,7 +208,7 @@ func (r *pageRenderer) close() {
 	r.browserCancel()
 }
 
-func renderedPageHash(renderer *pageRenderer, src source) (string, error) {
+func renderedPageContent(renderer *pageRenderer, src source) (string, error) {
 	ctx, cancel := context.WithTimeout(renderer.pageCtx, 30*time.Second)
 	defer cancel()
 	if _, err := chromedp.Run(ctx, chromedp.Navigate(src.URL)); err != nil {
@@ -214,10 +225,10 @@ func renderedPageHash(renderer *pageRenderer, src source) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parse rendered HTML: %w", err)
 	}
-	return hashDocument(doc, src.TargetXPath)
+	return extractContent(doc, src.TargetXPath)
 }
 
-func hashDocument(doc *html.Node, targetXPath string) (string, error) {
+func extractContent(doc *html.Node, targetXPath string) (string, error) {
 	nodes, err := htmlquery.QueryAll(doc, targetXPath)
 	if err != nil {
 		return "", fmt.Errorf("invalid XPath: %w", err)
@@ -225,13 +236,18 @@ func hashDocument(doc *html.Node, targetXPath string) (string, error) {
 	if len(nodes) == 0 {
 		return "", fmt.Errorf("XPath matched no elements")
 	}
-	h := sha256.New()
+	var buf strings.Builder
 	for _, node := range nodes {
-		if err := html.Render(h, node); err != nil {
+		if err := html.Render(&buf, node); err != nil {
 			return "", fmt.Errorf("serialize selected content: %w", err)
 		}
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return buf.String(), nil
+}
+
+func hashContent(content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(sum[:])
 }
 
 func loadHashes(path string) (map[string]string, error) {
